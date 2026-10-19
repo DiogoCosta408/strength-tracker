@@ -1,16 +1,23 @@
-// Google Identity Services (GIS) token-client wrapper, scoped to Drive's appDataFolder.
-// This is a pure browser OAuth flow: there's no backend to hold a client secret, so it
-// can't use a durable refresh token. Instead it re-requests a token silently
-// (`prompt: ''`) when the cached one is near expiry, which works as long as this browser
-// still has an active Google session and the grant hasn't been revoked. When it can't,
-// getAccessToken() throws ReconnectRequiredError so the UI can ask for a fresh, explicit
-// "Connect" click (required — GIS needs a user gesture to show its consent popup).
+// Plain OAuth 2.0 implicit flow via a full-page redirect through a tiny static callback
+// page (public/oauth-callback.html) — deliberately NOT using Google Identity Services.
+// GIS loads a third-party script that sets up its own background iframe/message-channel
+// activity, which was traced (via a decoded production source map) to crashing deep inside
+// React-DOM's own scheduler on this app, with no application code involved at all — not a
+// bug in a callback, something about the script itself destabilizing the page. A plain
+// redirect avoids loading any third-party script, any popup, and any iframe/postMessage.
+//
+// Trade-off: no truly silent background token refresh (that needs either a backend-held
+// refresh token, or an invisible iframe trick like GIS's — both ruled out above). Once the
+// ~1h access token expires, the UI shows "Reconnect" and one tap redirects out and back.
 
-const SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
+const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const CONNECTED_KEY = 'gdrive-connected';
-const TOKEN_SAFETY_MARGIN_MS = 60_000;
-const REQUEST_TIMEOUT_MS = 15_000;
+const STATE_KEY = 'gdrive-oauth-state';
+const RETURN_HASH_KEY = 'gdrive-oauth-return-hash';
+// Must match the literal key written by public/oauth-callback.html (a plain static file,
+// not built/typechecked, so it can't import this constant).
+const PENDING_TOKEN_KEY = 'gdrive-pending-token';
 
 export class ReconnectRequiredError extends Error {
   constructor(message = 'Reconnect to Google Drive to keep syncing.') {
@@ -19,108 +26,17 @@ export class ReconnectRequiredError extends Error {
   }
 }
 
-interface TokenClient {
-  requestAccessToken(overrides?: { prompt?: string }): void;
-}
-interface TokenResponse {
-  access_token?: string;
-  expires_in?: number;
-  error?: string;
-}
-interface GoogleOAuth2 {
-  initTokenClient(config: {
-    client_id: string;
-    scope: string;
-    callback: (resp: TokenResponse) => void;
-    error_callback?: (err: { type?: string; message?: string }) => void;
-  }): TokenClient;
-  revoke(token: string, done?: () => void): void;
-}
-declare global {
-  interface Window {
-    google?: { accounts: { oauth2: GoogleOAuth2 } };
-  }
-}
-
-let scriptPromise: Promise<void> | undefined;
-function loadScript(): Promise<void> {
-  if (window.google?.accounts?.oauth2) return Promise.resolve();
-  if (!scriptPromise) {
-    scriptPromise = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = SCRIPT_SRC;
-      s.async = true;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error('Could not load Google Identity Services.'));
-      document.head.appendChild(s);
-    });
-  }
-  return scriptPromise;
-}
-
 function clientId(): string {
   const id = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   if (!id) throw new Error('VITE_GOOGLE_CLIENT_ID is not set. See README → Cloud sync setup.');
   return id;
 }
 
-let client: TokenClient | undefined;
+function callbackUrl(): string {
+  return new URL('oauth-callback.html', location.href).toString();
+}
+
 let cachedToken: { token: string; expiresAt: number } | undefined;
-let pending: { resolve: (token: string) => void; reject: (err: unknown) => void } | undefined;
-
-async function ensureClient(): Promise<TokenClient> {
-  await loadScript();
-  if (!client) {
-    client = window.google!.accounts.oauth2.initTokenClient({
-      client_id: clientId(),
-      scope: SCOPE,
-      callback: (resp) => {
-        const p = pending;
-        pending = undefined;
-        if (!p) return;
-        if (resp.error || !resp.access_token) {
-          p.reject(new ReconnectRequiredError());
-          return;
-        }
-        cachedToken = { token: resp.access_token, expiresAt: Date.now() + (resp.expires_in ?? 3600) * 1000 };
-        p.resolve(resp.access_token);
-      },
-      error_callback: (err) => {
-        const p = pending;
-        pending = undefined;
-        p?.reject(new ReconnectRequiredError(err?.message));
-      },
-    });
-  }
-  return client;
-}
-
-function requestToken(overrides?: { prompt?: string }): Promise<string> {
-  return ensureClient().then(
-    (c) =>
-      new Promise<string>((resolve, reject) => {
-        if (pending) {
-          reject(new Error('A Google Drive sign-in is already in progress.'));
-          return;
-        }
-        const timeout = setTimeout(() => {
-          pending = undefined;
-          reject(new ReconnectRequiredError());
-        }, REQUEST_TIMEOUT_MS);
-        pending = {
-          resolve: (token) => {
-            clearTimeout(timeout);
-            resolve(token);
-          },
-          reject: (err) => {
-            clearTimeout(timeout);
-            reject(err);
-          },
-        };
-        c.requestAccessToken(overrides);
-      }),
-  );
-}
 
 export function isConnected(): boolean {
   try {
@@ -140,35 +56,71 @@ function setConnected(v: boolean): void {
 }
 
 /**
- * Loads the GIS script and creates the token client ahead of time. Call this as soon as the
- * Cloud sync UI is shown, NOT from the Connect click itself — if the script still has to be
- * fetched when the user clicks, the popup opens after an async gap and most mobile browsers
- * then refuse to treat it as user-initiated, silently blocking it ("Failed to open popup
- * window" in the console, with no visible error since Google's own retry path misbehaves).
+ * Call once on app start, before anything else touches auth state: picks up a token left by
+ * oauth-callback.html after a round trip, and restores the hash the user was on before the
+ * redirect (connect() stashed it) so they land back where they were, not on the dashboard.
  */
-export function preload(): void {
-  if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) return; // dev mock / not configured — nothing to warm up
-  ensureClient().catch(() => {
-    /* best-effort warm-up; a real error surfaces again on the actual connect() call */
-  });
+export function consumePendingToken(): void {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(PENDING_TOKEN_KEY);
+    localStorage.removeItem(PENDING_TOKEN_KEY);
+  } catch {
+    return;
+  }
+  if (!raw) return;
+  try {
+    const { token, expiresAt, state, error } = JSON.parse(raw) as { token?: string; expiresAt?: number; state?: string; error?: string };
+    let expectedState: string | null = null;
+    try {
+      expectedState = sessionStorage.getItem(STATE_KEY);
+      sessionStorage.removeItem(STATE_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (!error && token && expiresAt && expectedState && state === expectedState) {
+      cachedToken = { token, expiresAt };
+      setConnected(true);
+    }
+  } catch {
+    /* malformed payload — ignore, stay disconnected */
+  }
+  try {
+    const returnHash = sessionStorage.getItem(RETURN_HASH_KEY);
+    sessionStorage.removeItem(RETURN_HASH_KEY);
+    if (returnHash) location.hash = returnHash;
+  } catch {
+    /* ignore */
+  }
 }
 
-/** Interactive connect. Must run from a user gesture (e.g. a button's onClick) — shows Google's consent popup. */
-export async function connect(): Promise<void> {
-  await requestToken();
-  setConnected(true);
+/** Interactive connect. Navigates the whole page to Google's consent screen and back. */
+export function connect(): void {
+  const state = `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+  try {
+    sessionStorage.setItem(STATE_KEY, state);
+    sessionStorage.setItem(RETURN_HASH_KEY, location.hash);
+  } catch {
+    /* ignore */
+  }
+  const url = new URL(AUTH_ENDPOINT);
+  url.searchParams.set('client_id', clientId());
+  url.searchParams.set('redirect_uri', callbackUrl());
+  url.searchParams.set('response_type', 'token');
+  url.searchParams.set('scope', SCOPE);
+  url.searchParams.set('include_granted_scopes', 'true');
+  url.searchParams.set('state', state);
+  location.href = url.toString();
 }
 
 export function disconnect(): void {
-  if (cachedToken) window.google?.accounts.oauth2.revoke(cachedToken.token);
   cachedToken = undefined;
-  client = undefined;
   setConnected(false);
 }
 
-/** A valid access token, refreshed silently if the cached one is near expiry. Never persisted to disk. */
+/** A valid access token, or throws ReconnectRequiredError if there isn't one (no silent refresh — see module docs). */
 export async function getAccessToken(): Promise<string> {
   if (!isConnected()) throw new ReconnectRequiredError('Not connected to Google Drive.');
-  if (cachedToken && cachedToken.expiresAt - TOKEN_SAFETY_MARGIN_MS > Date.now()) return cachedToken.token;
-  return requestToken({ prompt: '' });
+  if (cachedToken && cachedToken.expiresAt - 60_000 > Date.now()) return cachedToken.token;
+  throw new ReconnectRequiredError();
 }

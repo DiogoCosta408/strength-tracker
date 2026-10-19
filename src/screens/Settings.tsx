@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { AppState, Profile } from '../types';
 import { exerciseName, exportJson, getState, replaceState, update, useAppState } from '../lib/store';
 import { nowISO, todayISO } from '../lib/util';
 import { ask, askText, go, Help, Icon, NumInput, Segmented, Sheet, TopBar, toast } from '../components/ui';
 import { seedDemoData } from '../lib/demo';
 import { connectDrive, disconnectDrive, listSnapshots, restoreSnapshot, syncNow, useSyncState, type SnapshotInfo, type SyncStatus } from '../lib/sync';
-import { preload as preloadGoogleAuth } from '../lib/googleAuth';
 
 function relTime(iso: string): string {
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -22,13 +21,6 @@ function CloudSyncCard() {
   const sync = useSyncState();
   const [busy, setBusy] = useState(false);
   const [snapshots, setSnapshots] = useState<SnapshotInfo[] | null>(null);
-
-  // Warm up Google's sign-in script as soon as this card is visible, so the actual click on
-  // "Connect"/"Reconnect" opens the popup synchronously instead of after a network fetch —
-  // otherwise mobile browsers treat it as not user-initiated and silently block it.
-  useEffect(() => {
-    if (sync.status === 'disconnected' || sync.status === 'reconnect') preloadGoogleAuth();
-  }, [sync.status]);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);

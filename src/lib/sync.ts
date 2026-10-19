@@ -127,9 +127,14 @@ export async function syncNow(): Promise<void> {
   }
 }
 
-/** Interactive connect (must run from a click handler), then an immediate first sync. */
+/**
+ * Interactive connect. The real backend navigates the whole page away to Google and back
+ * (see googleAuth.ts) — nothing after that call matters until the page reloads and initSync()
+ * runs again. The dev-mock backend connects immediately in place, so the sync right after
+ * still makes the UI feel responsive there.
+ */
 export async function connectDrive(): Promise<void> {
-  await authBackend.connect();
+  authBackend.connect();
   setSyncState({ status: 'idle' });
   await syncNow();
 }

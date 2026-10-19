@@ -98,22 +98,22 @@ The site is served at `https://<owner>.github.io/<repo>/` (a sub-path) — the b
 
 ## Cloud sync setup
 
-Cloud sync stores a backup in a hidden folder in your own Google Drive (`appDataFolder` — not visible in Drive's normal UI, and only this app can read it) and merges per record by id, so new data from two devices is unioned rather than one device's data overwriting the other's. There's no server of any kind involved; it's pure browser-side OAuth.
+Cloud sync stores a backup in a hidden folder in your own Google Drive (`appDataFolder` — not visible in Drive's normal UI, and only this app can read it) and merges per record by id, so new data from two devices is unioned rather than one device's data overwriting the other's. There's no server of any kind involved; it's pure browser-side OAuth — specifically a plain redirect-based flow (`src/lib/googleAuth.ts` + `public/oauth-callback.html`), not Google's Identity Services script, which was found to conflict with React on this app.
 
 **1. Google Cloud Console** (one-time, per deployment):
 
 1. Create a project at [console.cloud.google.com](https://console.cloud.google.com) (or reuse one).
 2. **APIs & Services → Enabled APIs** → enable the **Google Drive API**.
 3. **APIs & Services → OAuth consent screen**: set it up for **External** users (or Internal if you're on Google Workspace), add the `drive.appdata` scope, and add your own Google account as a test user if the app stays in "Testing" status (fine for personal use — no verification needed since the scope is non-sensitive and limited to the app's own hidden folder).
-4. **APIs & Services → Credentials → Create credentials → OAuth client ID**, type **Web application**. Add **Authorized JavaScript origins**: your GitHub Pages origin (e.g. `https://diogocosta408.github.io` — origin only, no path) and `http://localhost:5173` for local dev. No redirect URI is needed — this uses the implicit token flow, entirely in the browser.
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID**, type **Web application**. Add **Authorized redirect URIs**: `https://diogocosta408.github.io/strength-tracker/oauth-callback.html` and, for local dev, `http://localhost:5173/oauth-callback.html`. (Authorized JavaScript origins aren't used by this flow — leave that section empty.)
 5. Copy the generated **Client ID**.
 
 **2. App configuration:**
 
 - Local dev: copy `.env.example` to `.env.local` and set `VITE_GOOGLE_CLIENT_ID` to the client id. Restart `npm run dev`. Without this, Settings → Cloud sync falls back to an in-browser mock of Drive (clickable, but nothing really leaves the device) and logs a warning to the console.
-- GitHub Pages: add a repo secret with the same value — **Settings → Secrets and variables → Actions → New repository secret**, name `VITE_GOOGLE_CLIENT_ID`. The deploy workflow passes it to the build. (Deploying elsewhere instead — Netlify, Cloudflare Pages, Vercel — just set the same env var in that host's dashboard.)
+- GitHub Pages: add a repo secret with the same value — **Settings → Secrets and variables → Actions → New repository secret**, name `VITE_GOOGLE_CLIENT_ID`. The deploy workflow passes it to the build. (Deploying elsewhere instead — Netlify, Cloudflare Pages, Vercel — just set the same env var in that host's dashboard, and add that host's own `/oauth-callback.html` URL as an authorized redirect URI too.)
 
-**Limitations:** this is a backend-free OAuth flow, so there's no refresh token — the app re-authenticates silently using the browser's existing Google session. If that session is gone (cookies cleared, consent revoked, a long time since last use), Settings will show **Reconnect**; one tap re-opens Google's consent popup. The last 7 daily snapshots are kept in Drive so a bad sync can be rolled back from **Restore snapshot**.
+**Limitations:** this is a backend-free OAuth flow, so there's no refresh token and no silent background renewal — connecting (or reconnecting once the ~1h token expires) means a quick redirect out to Google's consent screen and back, not a popup. The last 7 daily snapshots are kept in Drive so a bad sync can be rolled back from **Restore snapshot**.
 
 ## Notes
 

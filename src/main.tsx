@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { loadState } from './lib/store';
 import { initSync, setSyncBackend } from './lib/sync';
+import { consumePendingToken } from './lib/googleAuth';
 import './styles.css';
 
 try {
@@ -19,6 +20,8 @@ async function bootstrapSync() {
     const mock = await import('./lib/googleDriveMock');
     setSyncBackend(mock, mock);
     console.warn('[sync] VITE_GOOGLE_CLIENT_ID is not set — using a local mock of Google Drive for Cloud sync.');
+  } else {
+    consumePendingToken(); // picks up a token left by oauth-callback.html, if we just returned from one
   }
   initSync();
 }
