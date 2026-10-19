@@ -73,7 +73,10 @@ export function App() {
   if (!loaded) return null;
   const page = route[0] ?? '';
   return (
-    <>
+    // Outer boundary: a last resort for a crash outside the screen area itself (tab bar,
+    // toasts, dialogs). The inner one (keyed by route) is what lets switching tabs recover
+    // from a broken screen without a reload.
+    <ErrorBoundary>
       <div className="app">
         <ErrorBoundary key={key}>
           <Screen route={route} />
@@ -97,6 +100,6 @@ export function App() {
       </nav>
       <Toaster />
       <DialogHost />
-    </>
+    </ErrorBoundary>
   );
 }

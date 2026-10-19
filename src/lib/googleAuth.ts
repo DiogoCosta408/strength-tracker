@@ -139,6 +139,20 @@ function setConnected(v: boolean): void {
   }
 }
 
+/**
+ * Loads the GIS script and creates the token client ahead of time. Call this as soon as the
+ * Cloud sync UI is shown, NOT from the Connect click itself — if the script still has to be
+ * fetched when the user clicks, the popup opens after an async gap and most mobile browsers
+ * then refuse to treat it as user-initiated, silently blocking it ("Failed to open popup
+ * window" in the console, with no visible error since Google's own retry path misbehaves).
+ */
+export function preload(): void {
+  if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) return; // dev mock / not configured — nothing to warm up
+  ensureClient().catch(() => {
+    /* best-effort warm-up; a real error surfaces again on the actual connect() call */
+  });
+}
+
 /** Interactive connect. Must run from a user gesture (e.g. a button's onClick) — shows Google's consent popup. */
 export async function connect(): Promise<void> {
   await requestToken();
