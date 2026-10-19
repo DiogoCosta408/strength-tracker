@@ -1,5 +1,7 @@
 # Strength Tracker
 
+[![Try it live](https://img.shields.io/badge/Try%20it%20live-strength--tracker-22c55e?style=for-the-badge)](https://diogocosta408.github.io/strength-tracker/)
+
 A mobile-first strength training log for powerlifters and barbell athletes. It runs as an installable PWA (add to home screen on iOS/Android), works offline, and keeps all data on the device.
 
 ## Features
@@ -49,7 +51,9 @@ npm run build      # static build in dist/
 
 ## Install on your phone
 
-Deploy `dist/` to any static HTTPS host, such as GitHub Pages, Netlify, Cloudflare Pages or Vercel. The build uses relative paths, so it also works from a sub-path. Then open the site on your phone and choose **Add to Home Screen** (Safari share menu on iOS, Chrome menu on Android). The service worker caches the app so it works offline at the gym.
+The live demo above ([diogocosta408.github.io/strength-tracker](https://diogocosta408.github.io/strength-tracker/)) is deployed automatically from `main` by `.github/workflows/deploy.yml` — see **Cloud sync setup** below for the one-time GitHub Pages setup. You can also deploy `dist/` to any other static HTTPS host (Netlify, Cloudflare Pages, Vercel…); the build uses relative paths, so it works from a sub-path too.
+
+Open the site on your phone and choose **Add to Home Screen** (Safari share menu on iOS, Chrome menu on Android). The service worker caches the app so it works offline at the gym.
 
 Data lives in the browser's IndexedDB on that device. Connect **Cloud sync** in Settings to back it up and keep it in sync with your other devices (see below), and/or export a backup regularly from Settings — especially before switching phones or clearing browser data.
 
@@ -83,6 +87,15 @@ Data lives in the browser's IndexedDB on that device. Connect **Cloud sync** in 
 
 Requests go directly from the device to the Claude API (`claude-opus-5-5`, streaming, with the server-side refusal fallback enabled). The key is kept in that browser's localStorage, outside the backup file. Anyone with access to the unlocked device could read it, so use a key with a spending limit.
 
+## GitHub Pages deployment
+
+`.github/workflows/deploy.yml` builds and deploys `dist/` to GitHub Pages on every push to `main`. One-time repo setup (requires admin access, so do this yourself):
+
+1. **Settings → Pages → Build and deployment → Source**: set to **GitHub Actions**.
+2. If using Cloud sync, add the `VITE_GOOGLE_CLIENT_ID` secret first — see below — then push to `main` (or run the workflow manually from the **Actions** tab) to trigger the first deploy.
+
+The site is served at `https://<owner>.github.io/<repo>/` (a sub-path) — the build's relative paths already support that, no config changes needed.
+
 ## Cloud sync setup
 
 Cloud sync stores a backup in a hidden folder in your own Google Drive (`appDataFolder` — not visible in Drive's normal UI, and only this app can read it) and merges per record by id, so new data from two devices is unioned rather than one device's data overwriting the other's. There's no server of any kind involved; it's pure browser-side OAuth.
@@ -92,13 +105,13 @@ Cloud sync stores a backup in a hidden folder in your own Google Drive (`appData
 1. Create a project at [console.cloud.google.com](https://console.cloud.google.com) (or reuse one).
 2. **APIs & Services → Enabled APIs** → enable the **Google Drive API**.
 3. **APIs & Services → OAuth consent screen**: set it up for **External** users (or Internal if you're on Google Workspace), add the `drive.appdata` scope, and add your own Google account as a test user if the app stays in "Testing" status (fine for personal use — no verification needed since the scope is non-sensitive and limited to the app's own hidden folder).
-4. **APIs & Services → Credentials → Create credentials → OAuth client ID**, type **Web application**. Add **Authorized JavaScript origins**: your Vercel domain (e.g. `https://strength-tracker.vercel.app`) and `http://localhost:5173` for local dev. No redirect URI is needed — this uses the implicit token flow, entirely in the browser.
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID**, type **Web application**. Add **Authorized JavaScript origins**: your GitHub Pages origin (e.g. `https://diogocosta408.github.io` — origin only, no path) and `http://localhost:5173` for local dev. No redirect URI is needed — this uses the implicit token flow, entirely in the browser.
 5. Copy the generated **Client ID**.
 
 **2. App configuration:**
 
 - Local dev: copy `.env.example` to `.env.local` and set `VITE_GOOGLE_CLIENT_ID` to the client id. Restart `npm run dev`. Without this, Settings → Cloud sync falls back to an in-browser mock of Drive (clickable, but nothing really leaves the device) and logs a warning to the console.
-- Vercel: in the project's **Settings → Environment Variables**, add `VITE_GOOGLE_CLIENT_ID` with the same value, then redeploy.
+- GitHub Pages: add a repo secret with the same value — **Settings → Secrets and variables → Actions → New repository secret**, name `VITE_GOOGLE_CLIENT_ID`. The deploy workflow passes it to the build. (Deploying elsewhere instead — Netlify, Cloudflare Pages, Vercel — just set the same env var in that host's dashboard.)
 
 **Limitations:** this is a backend-free OAuth flow, so there's no refresh token — the app re-authenticates silently using the browser's existing Google session. If that session is gone (cookies cleared, consent revoked, a long time since last use), Settings will show **Reconnect**; one tap re-opens Google's consent popup. The last 7 daily snapshots are kept in Drive so a bad sync can be rolled back from **Restore snapshot**.
 
