@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { Exercise, ExercisePrescription, Program, ProgramDay, SetKind, SetPrescription } from '../types';
 import { flattenDays } from '../data/programs';
-import { allPrograms, exerciseName, getProgram, getState, update, useAppState } from '../lib/store';
+import { allPrograms, exerciseName, getExercise, getProgram, getState, update, useAppState } from '../lib/store';
 import { suggestLoad } from '../lib/stats';
 import { duplicateProgram, startWorkout } from '../lib/workout';
 import { clone, nowISO, uid } from '../lib/util';
@@ -241,7 +241,7 @@ export function ProgramEditor({ id }: { id: string }) {
   const p = s.programs.find((x) => x.id === id);
   const [week, setWeek] = useState(0);
   const [picker, setPicker] = useState<string | null>(null); // day id
-  const [swapping, setSwapping] = useState<{ dayId: string; idx: number } | null>(null);
+  const [swapping, setSwapping] = useState<{ dayId: string; idx: number; exerciseId: string } | null>(null);
   if (!p) return <div className="empty">Program not found (built-in templates must be copied before editing).</div>;
   const wi = Math.min(week, p.weeks.length - 1);
 
@@ -331,7 +331,7 @@ export function ProgramEditor({ id }: { id: string }) {
           {d.exercises.map((e, ei) => (
             <div key={ei} style={{ borderTop: '1px solid var(--border)', marginTop: 10, paddingTop: 8 }}>
               <div className="row">
-                <button className="btn-ghost bold grow" style={{ justifyContent: 'flex-start', padding: 0, minHeight: 0 }} onClick={() => setSwapping({ dayId: d.id, idx: ei })}>
+                <button className="btn-ghost bold grow" style={{ justifyContent: 'flex-start', padding: 0, minHeight: 0 }} onClick={() => setSwapping({ dayId: d.id, idx: ei, exerciseId: e.exerciseId })}>
                   {exerciseName(e.exerciseId, s)}
                 </button>
                 <button className="btn-ghost icon-btn" aria-label="Move up" disabled={ei === 0} onClick={() => save((c) => swap(c.weeks[wi].days[di].exercises, ei, ei - 1))}>
@@ -424,6 +424,7 @@ export function ProgramEditor({ id }: { id: string }) {
       {swapping && (
         <ExercisePicker
           title="Swap exercise"
+          similarTo={getExercise(swapping.exerciseId, s)}
           onClose={() => setSwapping(null)}
           onPick={(ex) => {
             updateEx(swapping.dayId, swapping.idx, (x) => (x.exerciseId = ex.id));

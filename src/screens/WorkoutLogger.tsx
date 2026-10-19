@@ -107,6 +107,7 @@ export function WorkoutLogger() {
       {picker && (
         <ExercisePicker
           title={picker.replace ? 'Replace exercise' : 'Add exercise'}
+          similarTo={picker.replace ? getExercise(w.exercises.find((x) => x.id === picker.replace)?.exerciseId ?? '', s) : undefined}
           onClose={() => setPicker(null)}
           onPick={(ex) => {
             if (picker.replace) updateExercise(picker.replace, (le) => ({ ...le, exerciseId: ex.id }));

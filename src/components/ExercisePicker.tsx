@@ -2,33 +2,41 @@ import { useMemo, useState } from 'react';
 import type { Equipment, Exercise, ExerciseCategory, Muscle } from '../types';
 import { CATEGORY_LABELS, EQUIPMENT_LABELS, MUSCLE_LABELS } from '../data/exercises';
 import { allExercises, update, useAppState } from '../lib/store';
+import { replacementScore } from '../lib/exerciseMatch';
 import { uid } from '../lib/util';
 import { Sheet } from './ui';
 
-export function useExerciseSearch(query: string, category: ExerciseCategory | 'all') {
+export function useExerciseSearch(query: string, category: ExerciseCategory | 'all', similarTo?: Exercise) {
   const s = useAppState();
   return useMemo(() => {
     const q = query.trim().toLowerCase();
     const terms = q.split(/\s+/).filter(Boolean);
     return allExercises(s)
+      .filter((e) => e.id !== similarTo?.id)
       .filter((e) => category === 'all' || e.category === category)
       .filter((e) => {
         if (!terms.length) return true;
         const hay = `${e.name} ${e.notes ?? ''} ${e.primary.map((m) => MUSCLE_LABELS[m]).join(' ')} ${EQUIPMENT_LABELS[e.equipment]}`.toLowerCase();
         return terms.every((t) => hay.includes(t));
       })
-      .sort((a, b) => Number(!!b.standard) - Number(!!a.standard) || a.name.localeCompare(b.name));
-  }, [s, query, category]);
+      .sort((a, b) =>
+        similarTo
+          ? replacementScore(similarTo, b) - replacementScore(similarTo, a) || a.name.localeCompare(b.name)
+          : Number(!!b.standard) - Number(!!a.standard) || a.name.localeCompare(b.name),
+      );
+  }, [s, query, category, similarTo]);
 }
 
-export function ExerciseList({ onPick, picked }: { onPick: (e: Exercise) => void; picked?: Set<string> }) {
+export function ExerciseList({ onPick, picked, similarTo }: { onPick: (e: Exercise) => void; picked?: Set<string>; similarTo?: Exercise }) {
   const [query, setQuery] = useState('');
-  const [cat, setCat] = useState<ExerciseCategory | 'all'>('all');
+  // Swapping an exercise opens on its own category, with the closest matches ranked first.
+  const [cat, setCat] = useState<ExerciseCategory | 'all'>(similarTo?.category ?? 'all');
   const [creating, setCreating] = useState(false);
-  const list = useExerciseSearch(query, cat);
+  const list = useExerciseSearch(query, cat, similarTo);
 
   return (
     <div>
+      {similarTo && <p className="small muted" style={{ margin: '0 0 8px' }}>Alternatives to {similarTo.name}</p>}
       <input type="search" placeholder="Search 200+ exercises, muscles, equipment…" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus={false} />
       <div className="chips" style={{ margin: '8px 0' }}>
         <button className={`chip ${cat === 'all' ? 'on' : ''}`} onClick={() => setCat('all')}>
@@ -72,10 +80,10 @@ export function ExerciseList({ onPick, picked }: { onPick: (e: Exercise) => void
   );
 }
 
-export function ExercisePicker({ onPick, onClose, title = 'Add exercise' }: { onPick: (e: Exercise) => void; onClose: () => void; title?: string }) {
+export function ExercisePicker({ onPick, onClose, title = 'Add exercise', similarTo }: { onPick: (e: Exercise) => void; onClose: () => void; title?: string; similarTo?: Exercise }) {
   return (
     <Sheet title={title} onClose={onClose}>
-      <ExerciseList onPick={onPick} />
+      <ExerciseList onPick={onPick} similarTo={similarTo} />
     </Sheet>
   );
 }
