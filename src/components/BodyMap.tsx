@@ -20,8 +20,8 @@ type Part = readonly [Muscle, readonly string[]];
 
 /* ---------- neutral silhouette (half) ---------- */
 const SILHOUETTE: readonly string[] = [
-  // neck
-  'M100,44 L90,44 C91,54 90,62 86,68 L100,70 Z',
+  // neck (starts above the head's lower edge so the two never gap apart)
+  'M100,40 L90,40 C91,52 90,62 86,68 L100,70 Z',
   // torso + hip
   'M100,64 C90,65 80,68 66,71 C52,73 42,80 40,96 C40,108 42,118 46,124 C56,124 62,128 64,134 C64,160 64,180 64,198 C61,212 60,226 61,240 L100,248 Z',
   // upper arm + forearm
@@ -46,9 +46,11 @@ const FRONT: readonly Part[] = [
   ['abs', ['M99,124 L84,127 C81,150 80,180 83,208 C88,216 94,222 99,224 Z']],
   ['quads', ['M63,210 C58,238 58,276 65,308 C69,318 76,324 84,323 C89,318 90,310 90,300 C88,280 86,262 89,246 C82,232 74,220 63,210 Z']],
   ['adductors', ['M89,246 C86,264 88,284 90,300 C94,284 97,266 99,250 C96,248 92,247 89,246 Z']],
+  // Two gastroc heads either side of the shin bone, tapering into the Achilles — kept well
+  // inside the shin outline so they read as muscle, not as the whole lower leg.
   ['calves', [
-    'M65,340 C58,356 60,378 70,398 L78,398 C79,378 78,358 76,338 C72,336 68,337 65,340 Z',
-    'M94,342 C98,358 97,378 91,396 L86,396 C85,378 86,358 88,340 C90,339 92,340 94,342 Z',
+    'M70,331 C66,341 64,353 65,365 C66,376 70,384 74,390 L78,390 L78,331 Z',
+    'M88,331 C92,341 94,353 93,365 C92,376 88,384 84,390 L80,390 L80,331 Z',
   ]],
 ];
 
@@ -78,8 +80,8 @@ const BACK: readonly Part[] = [
   ['hamstrings', ['M65,254 C61,276 62,300 68,324 C74,330 80,330 86,326 C88,306 89,284 92,262 C82,262 72,260 65,254 Z']],
   ['adductors', ['M92,262 C90,282 88,304 87,322 C92,304 96,284 98,262 C96,262 94,262 92,262 Z']],
   ['calves', [
-    'M66,338 C58,354 59,376 70,394 C76,398 81,396 82,390 C83,372 82,354 80,334 C75,332 70,334 66,338 Z',
-    'M80,334 C82,354 83,372 82,390 C87,394 92,392 94,384 C98,368 98,352 95,340 C90,334 85,332 80,334 Z',
+    'M79,330 C71,334 65,345 65,359 C65,372 71,383 77,391 L79,391 Z',
+    'M81,330 C89,334 95,345 95,359 C95,372 89,383 83,391 L81,391 Z',
   ]],
 ];
 
@@ -113,12 +115,12 @@ function Figure({
           </g>
         ))}
         {/* ears */}
-        <ellipse cx={81} cy={30} rx={3.5} ry={7} />
-        <ellipse cx={119} cy={30} rx={3.5} ry={7} />
-        {/* head */}
-        <ellipse cx={100} cy={27} rx={18} ry={22} />
+        <ellipse cx={85} cy={27} rx={3} ry={5.5} />
+        <ellipse cx={115} cy={27} rx={3} ry={5.5} />
+        {/* head — sized so a neck is visible between it and the traps */}
+        <ellipse cx={100} cy={25} rx={16} ry={19} />
         {view === 'back' ? (
-          <path d="M83,20 C84,6 116,6 117,20 C112,14 88,14 83,20 Z" fill={stroke} opacity={0.35} stroke="none" />
+          <path d="M86,18 C87,7 113,7 114,18 C110,13 90,13 86,18 Z" fill={stroke} opacity={0.35} stroke="none" />
         ) : null}
         {/* knees */}
         <g fill="none" opacity={0.6}>
