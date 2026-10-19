@@ -69,9 +69,14 @@ export function Train() {
         </div>
       )}
 
-      <button className="btn-block" style={{ marginTop: 4 }} onClick={() => begin({ name: 'Workout' })}>
-        <Icon name="plus" /> Empty workout
-      </button>
+      <div className="row" style={{ marginTop: 4 }}>
+        <button className="grow" onClick={() => begin({ name: 'Workout' })}>
+          <Icon name="plus" /> Empty workout
+        </button>
+        <button className="grow" onClick={() => go('/tools')}>
+          <Icon name="calc" /> Calculators
+        </button>
+      </div>
 
       {recent.length > 0 && (
         <>

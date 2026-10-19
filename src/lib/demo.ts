@@ -27,7 +27,9 @@ export function seedDemoData(): void {
     const dow = date.getDay();
     if (![1, 3, 5].includes(dow)) continue;
     const sq = 180 + progress * 15;
-    const bp = 125 + progress * 8;
+    // Bench stalls after ~10 weeks and top sets start feeling harder: something for the coach to catch.
+    const bp = 125 + Math.min(progress, 0.62) * 8;
+    const bpRpe = progress > 0.62 ? Math.min(9.5, 8 + (progress - 0.62) * 4) : 8;
     const dl = 220 + progress * 17.5;
     const ohp = 75 + progress * 5;
     const top = (e1: number, reps: number, rpe: number) => e1 * [1, 0.955, 0.922, 0.892, 0.863][reps - 1] * (1 - (10 - rpe) * 0.03);
@@ -39,7 +41,7 @@ export function seedDemoData(): void {
       const b = top(bp, 3, 8);
       exercises = [
         ex('squat', [set(60, 5, undefined, 'warmup'), set(100, 3, undefined, 'warmup'), set(140, 2, undefined, 'warmup'), set(s, 3, 8, 'top'), set(s * 0.9, 4, 7), set(s * 0.9, 4, 7), set(s * 0.9, 4, 7.5)]),
-        ex('bench-press', [set(b, 3, 8, 'top'), set(b * 0.9, 5, 7.5), set(b * 0.9, 5, 8), set(b * 0.9, 5, 8)]),
+        ex('bench-press', [set(b, 3, Math.round(bpRpe * 2) / 2, 'top'), set(b * 0.9, 5, 7.5), set(b * 0.9, 5, 8), set(b * 0.9, 5, 8)]),
         ex('barbell-row', [set(90, 8, 8), set(90, 8, 8), set(90, 8, 8.5)]),
       ];
     } else if (dow === 3) {

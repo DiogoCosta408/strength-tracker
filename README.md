@@ -21,6 +21,10 @@ A mobile-first strength training log for powerlifters and barbell athletes. It r
   - meet attempt selector
 - **Dashboard**: SBD total and DOTS, the main lifts with 3-month change, an e1RM trend chart, weekly tonnage / hard sets, streak and recent PRs.
 - **Strength profile**: an anatomical front/back muscle map coloured by strength level, similar to symmetricstrength.com. It also shows per-lift standards (sex- and age-adjusted), kg needed for the next level, imbalance detection, and manual maxes for meet results.
+- **Coach**:
+  - **Insights** (offline, automatic): for squat, bench, deadlift and press it detects progressing, stalled and regressing lifts (e1RM trend over 6 weeks, weeks since PR). Likely causes it checks for: RPE drift at the same loads (fatigue), low frequency, low or high weekly volume, too little or too much heavy work, no variations, a finished linear progression, a drop in training frequency, a falling bodyweight, and lifts that lag behind the others. Each finding comes with concrete actions.
+  - **Diagnose** (offline): a short interview per lift covering where it fails (e.g. off the chest / mid-range / lockout), what breaks down technically, how heavy reps feel, plus sleep, diet phase and stress. It answers with targeted variations and accessories (sets × reps @ RPE, addable to your program in one tap), technique cues and programming changes.
+  - **Ask coach** (AI): a chat with a Claude-powered strength coach. It reads a summary of your last 6 weeks, the lift analysis and your diagnostic answers, asks follow-up questions before prescribing, then gives a plan. It needs your own Anthropic API key, which is stored on the device only.
 - **Bodyweight tracker** with a 7-day moving average.
 - **Share best lifts**: pick which lifts to share. It builds a PNG card (optional total, DOTS/Wilks and muscle map) and opens the native share sheet, or copies the lifts as text.
 - **Data**:
@@ -53,10 +57,20 @@ Data lives in the browser's IndexedDB on that device. Export a backup regularly 
 | `src/lib/stats.ts` | History, bests, rep maxes, PR detection, load suggestions, weekly stats |
 | `src/lib/workout.ts` | Starting / finishing workouts from program days, warm-ups, back-offs |
 | `src/lib/store.ts` | App state, IndexedDB persistence, lookups |
+| `src/lib/coach.ts` | Training analysis: trends, stalls, fatigue, volume/intensity, insights, AI context summary |
+| `src/lib/coachAi.ts` | Claude API client for the chat coach (streaming, prompt caching, refusal fallback) |
+| `src/data/coachKnowledge.ts` | Diagnostic questions and weak-point → variation/cue/programming knowledge base |
 | `src/data/exercises.ts` | Exercise library |
 | `src/data/programs.ts` | Built-in program templates |
 | `src/components/BodyMap.tsx` | Anatomical SVG muscle map |
 | `src/screens/*` | Screens (Dashboard, Train, Logger, Programs, Tools, Strength, Body, Share, History, Settings) |
+
+## AI coach setup
+
+1. Create an API key at console.anthropic.com.
+2. Open **Coach → Ask coach** and paste the key.
+
+Requests go directly from the device to the Claude API (`claude-opus-5-5`, streaming, with the server-side refusal fallback enabled). The key is kept in that browser's localStorage, outside the backup file. Anyone with access to the unlocked device could read it, so use a key with a spending limit.
 
 ## Notes
 

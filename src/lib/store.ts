@@ -24,6 +24,8 @@ export const DEFAULT_STATE: AppState = {
   customExercises: [],
   bodyweight: [],
   manualMaxes: {},
+  diagnoses: {},
+  coachChat: [],
 };
 
 let state: AppState = DEFAULT_STATE;

@@ -10,6 +10,7 @@
   --accent-ink: #1b1200;
   --accent-soft: #fff1d6;
   --good: #1f8f4e;
+  --warn: #b26b00;
   --bad: #c9362f;
   --grid: #e3e5ea;
   --body-fill: #c9cdd6;
@@ -32,6 +33,7 @@
     --accent-ink: #1b1200;
     --accent-soft: #3a2c10;
     --good: #45c27a;
+    --warn: #f0a63a;
     --bad: #ff6b61;
     --grid: #262a33;
     --body-fill: #3a3f4b;
@@ -54,6 +56,7 @@
   --accent-ink: #1b1200;
   --accent-soft: #3a2c10;
   --good: #45c27a;
+  --warn: #f0a63a;
   --bad: #ff6b61;
   --grid: #262a33;
   --body-fill: #3a3f4b;
@@ -661,4 +664,121 @@ table.tbl {
 .tbl.rpe-chart th,
 .tbl.rpe-chart td {
   padding: 5px 2px;
+}
+
+/* Coach */
+.status {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.status.good {
+  color: var(--good);
+}
+.status.warn {
+  color: var(--warn);
+}
+.status.bad {
+  color: var(--bad);
+}
+.status.muted {
+  color: var(--muted);
+}
+.insight.alert {
+  border-left: 4px solid var(--bad);
+}
+.insight.warn {
+  border-left: 4px solid var(--warn);
+}
+.insight.good {
+  border-left: 4px solid var(--good);
+}
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.option {
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  font-size: 14px;
+  background: var(--surface-2);
+}
+.option.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.rx-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+}
+.bubble {
+  max-width: 92%;
+  padding: 10px 13px;
+  border-radius: 16px;
+  font-size: 14.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bubble.user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-bottom-right-radius: 4px;
+}
+.bubble.assistant {
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+  white-space: normal;
+}
+.bubble.error {
+  color: var(--bad);
+}
+.md p {
+  margin: 0 0 8px;
+}
+.md p:last-child {
+  margin-bottom: 0;
+}
+.md ul,
+.md ol {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+}
+.md li {
+  margin: 2px 0;
+}
+.md h4 {
+  margin: 10px 0 4px;
+  font-size: 14.5px;
+}
+.composer {
+  position: sticky;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  background: var(--bg);
+  padding: 8px 0;
+}
+.composer textarea {
+  min-height: 44px;
+  flex: 1;
 }

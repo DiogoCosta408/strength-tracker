@@ -13,13 +13,14 @@ import { Body } from './screens/Body';
 import { Strength } from './screens/Strength';
 import { ExerciseDetail, ExerciseLibrary } from './screens/ExerciseDetail';
 import { Share } from './screens/Share';
+import { Coach } from './screens/Coach';
 
 const TABS = [
   { path: '', icon: 'home', label: 'Home', match: ['', 'strength', 'share'] },
   { path: 'train', icon: 'dumbbell', label: 'Train', match: ['train', 'workout'] },
+  { path: 'coach', icon: 'coach', label: 'Coach', match: ['coach'] },
   { path: 'programs', icon: 'list', label: 'Programs', match: ['programs', 'program', 'program-edit'] },
-  { path: 'tools', icon: 'calc', label: 'Tools', match: ['tools'] },
-  { path: 'more', icon: 'user', label: 'More', match: ['more', 'history', 'body', 'exercises', 'exercise', 'settings'] },
+  { path: 'more', icon: 'user', label: 'More', match: ['more', 'tools', 'history', 'body', 'exercises', 'exercise', 'settings'] },
 ];
 
 function Screen({ route }: { route: string[] }) {
@@ -55,6 +56,8 @@ function Screen({ route }: { route: string[] }) {
       return <ExerciseDetail id={id} />;
     case 'share':
       return <Share />;
+    case 'coach':
+      return <Coach />;
     default:
       return <Dashboard />;
   }

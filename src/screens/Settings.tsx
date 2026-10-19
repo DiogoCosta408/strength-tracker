@@ -8,6 +8,7 @@ import { seedDemoData } from '../lib/demo';
 export function More() {
   const s = useAppState();
   const items = [
+    { to: '/tools', icon: 'calc', label: 'Calculators', sub: '1RM, RPE, Wilks/DOTS, plates, meet attempts' },
     { to: '/history', icon: 'history', label: 'Workout history', sub: `${s.workouts.length} sessions` },
     { to: '/body', icon: 'scale', label: 'Bodyweight tracker', sub: `${s.bodyweight.length} entries` },
     { to: '/strength', icon: 'body', label: 'Strength profile & muscle map', sub: 'Standards, levels, imbalances' },
@@ -211,7 +212,7 @@ export function Settings() {
           style={{ marginTop: 10 }}
           onClick={async () => {
             if ((await ask('Delete ALL workouts, programs and bodyweight entries? This cannot be undone.', { confirmLabel: 'Delete everything', danger: true })) && (await ask('Really delete everything?', { confirmLabel: 'Yes, delete', danger: true }))) {
-              replaceState({ ...getState(), workouts: [], programs: [], bodyweight: [], customExercises: [], manualMaxes: {}, activeWorkout: undefined, activeProgram: undefined });
+              replaceState({ ...getState(), workouts: [], programs: [], bodyweight: [], customExercises: [], manualMaxes: {}, diagnoses: {}, coachChat: [], activeWorkout: undefined, activeProgram: undefined });
               toast('All data deleted');
             }
           }}

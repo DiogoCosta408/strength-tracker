@@ -187,6 +187,23 @@ export interface ActiveProgram {
   nextIndex: number;
 }
 
+// Coach ---------------------------------------------------------------------
+
+/** Answers to the coach's diagnostic questions for one lift, keyed by question id. */
+export interface Diagnosis {
+  exerciseId: string;
+  answers: Record<string, string[]>;
+  updatedAt: string;
+}
+
+export interface CoachMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  at: string;
+  error?: boolean;
+}
+
 export interface AppState {
   version: 1;
   profile: Profile;
@@ -198,4 +215,8 @@ export interface AppState {
   activeProgram?: ActiveProgram;
   /** Manually entered maxes (e.g. from a meet) by exercise id, kg. */
   manualMaxes: Record<string, number>;
+  /** Diagnostic interview answers by exercise id. */
+  diagnoses: Record<string, Diagnosis>;
+  /** Conversation with the AI coach. */
+  coachChat: CoachMessage[];
 }

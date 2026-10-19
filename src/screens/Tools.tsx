@@ -13,7 +13,7 @@ export function Tools() {
   const [tab, setTab] = useState<Tab>((route[1] as Tab) || '1rm');
   return (
     <div>
-      <TopBar title="Tools" />
+      <TopBar title="Calculators" backTo="/more" />
       <Segmented
         value={tab}
         onChange={setTab}

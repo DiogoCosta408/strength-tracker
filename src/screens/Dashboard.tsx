@@ -8,6 +8,7 @@ import { go, Icon, Segmented, Stat } from '../components/ui';
 import { nextProgramDay } from '../lib/workout';
 import { StrengthMini } from './Strength';
 import { movingAverage } from './Body';
+import { buildInsights } from '../lib/coach';
 
 const MAIN_LIFTS = [
   { id: 'squat', label: 'Squat' },
@@ -55,6 +56,7 @@ export function Dashboard() {
   }, [s]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sel = lifts.find((l) => l.id === lift)!;
+  const coachNote = useMemo(() => buildInsights(s).find((i) => i.severity !== 'info') ?? null, [s]);
   const bwSorted = [...s.bodyweight].sort((a, b) => a.date.localeCompare(b.date));
   const bwTrend = movingAverage(bwSorted.slice(-30)).map((p) => p.y);
 
@@ -99,6 +101,19 @@ export function Dashboard() {
             </li>
           </ol>
         </div>
+      )}
+
+      {coachNote && workouts.length > 0 && (
+        <button className={`card insight ${coachNote.severity} list-item`} style={{ display: 'block', borderRadius: 14, border: '1px solid var(--border)', marginTop: 12 }} onClick={() => go('/coach')}>
+          <div className="row between">
+            <span className="small muted">Coach</span>
+            <span className="small muted">Details ›</span>
+          </div>
+          <div className="bold">{coachNote.title}</div>
+          <div className="small" style={{ color: 'var(--text-2)' }}>
+            {coachNote.actions[0]}
+          </div>
+        </button>
       )}
 
       <div className="grid2" style={{ marginTop: 12 }}>
