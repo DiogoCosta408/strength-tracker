@@ -59,7 +59,7 @@ export const LIFT_LABELS: Record<StandardLift, string> = {
 };
 
 export const LEVELS = [
-  { name: 'Untrained', min: 0 },
+  { name: 'Beginner', min: 0 },
   { name: 'Novice', min: 20 },
   { name: 'Intermediate', min: 40 },
   { name: 'Advanced', min: 60 },
@@ -160,6 +160,17 @@ const STOPS: [number, [number, number, number]][] = [
   [100, [60, 140, 230]],
   [120, [150, 90, 220]],
 ];
+
+/**
+ * How even strength is across logged lifts (100 = all at the same score, lower = more
+ * imbalanced) — a Symmetric Strength-style secondary stat alongside the overall score.
+ */
+export function balanceScore(scores: { score: number }[]): number {
+  if (scores.length < 2) return 100;
+  const avg = scores.reduce((a, x) => a + x.score, 0) / scores.length;
+  const avgDeviation = scores.reduce((a, x) => a + Math.abs(x.score - avg), 0) / scores.length;
+  return Math.max(0, 100 - avgDeviation * 2);
+}
 
 export function scoreColor(score: number | null | undefined): string {
   if (score === null || score === undefined) return 'var(--muscle-empty, #4a505c)';

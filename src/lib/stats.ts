@@ -152,13 +152,22 @@ export function standings(s: AppState): LiftStanding[] {
   if (!bw) return [];
   const age = s.profile.birthYear ? new Date().getFullYear() - s.profile.birthYear : undefined;
   const out: LiftStanding[] = [];
+  for (const ex of standardLiftExercises(s)) {
+    const best = bestE1rm(s, ex.id, 365) || bestE1rm(s, ex.id);
+    if (!best) continue;
+    out.push({ lift: ex.standard!, exerciseId: ex.id, e1rm: best, score: liftScore(ex.standard!, best, bw, s.profile.sex, age) });
+  }
+  return out;
+}
+
+/** One exercise per standard lift category (first logged custom variant, else the built-in). */
+function standardLiftExercises(s: AppState): (Exercise & { standard: StandardLift })[] {
+  const out: (Exercise & { standard: StandardLift })[] = [];
   const seen = new Set<StandardLift>();
   for (const ex of [...s.customExercises, ...allStandardExercises(s)]) {
     if (!ex.standard || seen.has(ex.standard)) continue;
-    const best = bestE1rm(s, ex.id, 365) || bestE1rm(s, ex.id);
-    if (!best) continue;
     seen.add(ex.standard);
-    out.push({ lift: ex.standard, exerciseId: ex.id, e1rm: best, score: liftScore(ex.standard, best, bw, s.profile.sex, age) });
+    out.push(ex as Exercise & { standard: StandardLift });
   }
   return out;
 }
@@ -166,6 +175,33 @@ export function standings(s: AppState): LiftStanding[] {
 function allStandardExercises(s: AppState): Exercise[] {
   const ids = ['squat', 'front-squat', 'bench-press', 'incline-bench-press', 'deadlift', 'sumo-deadlift', 'press', 'power-clean', 'barbell-row', 'chin-up', 'pull-up', 'dip', 'romanian-deadlift', 'hip-thrust'];
   return ids.map((id) => getExercise(id, s)).filter((x): x is Exercise => !!x);
+}
+
+/**
+ * Overall strength score (average across standard lifts, like standings()) at weekly points
+ * over the trailing period — for a trend chart. Uses the best e1RM logged up to each point and
+ * bodyweight as of that date, same inputs liftScore() uses for the current score.
+ */
+export function strengthScoreHistory(s: AppState, weeks = 16): { date: string; score: number }[] {
+  const bw = bodyweightAt(s);
+  if (!bw) return [];
+  const age = s.profile.birthYear ? new Date().getFullYear() - s.profile.birthYear : undefined;
+  const histories = standardLiftExercises(s).map((ex) => ({ lift: ex.standard, points: exerciseHistory(s, ex.id) }));
+  const out: { date: string; score: number }[] = [];
+  const now = Date.now();
+  for (let w = weeks - 1; w >= 0; w--) {
+    const cutoff = now - w * 7 * 86400000;
+    const cutoffIso = new Date(cutoff).toISOString();
+    const bwAt = bodyweightAt(s, cutoffIso) ?? bw;
+    const scores: number[] = [];
+    for (const h of histories) {
+      let best = 0;
+      for (const p of h.points) if (new Date(p.date).getTime() <= cutoff && p.e1rm > best) best = p.e1rm;
+      if (best) scores.push(liftScore(h.lift, best, bwAt, s.profile.sex, age));
+    }
+    if (scores.length) out.push({ date: cutoffIso, score: scores.reduce((a, x) => a + x, 0) / scores.length });
+  }
+  return out;
 }
 
 export interface WeekStat {

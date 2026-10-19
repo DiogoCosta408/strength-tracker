@@ -3,9 +3,10 @@ import type { Muscle, StandardLift } from '../types';
 import { MUSCLE_LABELS } from '../data/exercises';
 import { fmtKg } from '../lib/calc';
 import { bodyweightAt, exerciseName, getExercise, update, useAppState } from '../lib/store';
-import { standings } from '../lib/stats';
-import { LEVELS, levelFor, LIFT_LABELS, LIFT_MUSCLES, loadForLevel, muscleScores, scoreColor } from '../lib/strength';
+import { standings, strengthScoreHistory } from '../lib/stats';
+import { balanceScore, LEVELS, levelFor, LIFT_LABELS, LIFT_MUSCLES, loadForLevel, muscleScores, scoreColor } from '../lib/strength';
 import { BodyMap } from '../components/BodyMap';
+import { LineChart } from '../components/Charts';
 import { go, Help, NumInput, Sheet, TopBar } from '../components/ui';
 import { nowISO } from '../lib/util';
 
@@ -43,11 +44,90 @@ export function StrengthMini({ onClick }: { onClick?: () => void }) {
   return (
     <div onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }}>
       <BodyMap colorFor={(m) => scoreColor(muscles[m])} labelFor={(m) => `${MUSCLE_LABELS[m]}: ${muscles[m] === null ? 'no data' : levelFor(muscles[m]!)}`} />
+      <StrengthLegend />
       {st.length > 0 && (
-        <div className="center small">
+        <div className="center small" style={{ marginTop: 6 }}>
           Overall: <b>{levelFor(avg)}</b> <span className="muted">({Math.round(avg)} pts)</span>
         </div>
       )}
+    </div>
+  );
+}
+
+/** What each muscle colour means, one swatch per level. */
+export function StrengthLegend() {
+  return (
+    <div className="row wrap center" style={{ gap: '4px 12px', justifyContent: 'center', marginTop: 8 }}>
+      {LEVELS.map((l) => (
+        <span key={l.name} className="tiny muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ width: 9, height: 9, borderRadius: '50%', background: scoreColor(l.min + 10), display: 'inline-block', flexShrink: 0 }} />
+          {l.name}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Headline score, balance and per-lift bars — the at-a-glance summary for the dashboard. */
+export function StrengthScoreCard({ max = 5, onClick }: { max?: number; onClick?: () => void }) {
+  const { standings: st, avg } = useStrengthProfile();
+  if (!st.length) return null;
+  const balance = balanceScore(st);
+  const bars = [...st].sort((a, b) => b.score - a.score).slice(0, max);
+  return (
+    <div className="card" onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }}>
+      <div className="row between" style={{ alignItems: 'flex-start' }}>
+        <div>
+          <div className="tiny muted" style={{ letterSpacing: '0.08em', textTransform: 'uppercase' }}>Strength score</div>
+          <div className="num" style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.05 }}>{Math.round(avg)}</div>
+          <div className="small" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 9, height: 9, borderRadius: '50%', background: scoreColor(avg), display: 'inline-block' }} />
+            {levelFor(avg)}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div className="tiny muted title-row" style={{ letterSpacing: '0.08em', textTransform: 'uppercase', justifyContent: 'flex-end' }}>
+            Balance
+            <Help title="Balance">
+              <p>How even your lifts are relative to each other: 100% means every scored lift sits at the same level, lower means some lag behind.</p>
+              <p>It's the average gap between each lift's score and your overall score — the same gaps listed under Imbalances.</p>
+            </Help>
+          </div>
+          <div className="num" style={{ fontSize: 28, fontWeight: 800, lineHeight: 1.1 }}>
+            {Math.round(balance)}
+            <span className="small muted">%</span>
+          </div>
+        </div>
+      </div>
+      <div style={{ marginTop: 10 }}>
+        {bars.map((x) => (
+          <div key={x.lift} className="row" style={{ alignItems: 'center', gap: 8, padding: '3px 0' }}>
+            <span className="small ellipsis" style={{ width: 96, flexShrink: 0 }}>{LIFT_LABELS[x.lift]}</span>
+            <div className="level-bar grow">
+              <div style={{ width: `${Math.min(100, (x.score / 120) * 100)}%`, background: scoreColor(x.score) }} />
+            </div>
+            <span className="tiny muted num" style={{ width: 26, textAlign: 'right' }}>{Math.round(x.score)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Overall strength score over time. */
+export function StrengthProgressChart({ weeks = 16 }: { weeks?: number }) {
+  const s = useAppState();
+  const history = useMemo(() => strengthScoreHistory(s, weeks), [s, weeks]);
+  if (history.length < 2) return null;
+  return (
+    <div className="card">
+      <div className="title-row" style={{ marginBottom: 2 }}>
+        <h3 style={{ margin: 0 }}>Strength score trend</h3>
+        <Help title="Strength score trend">
+          <p>Your overall score (the average across every scored lift) recalculated at each week, using the best e1RM logged up to that point and your bodyweight at the time.</p>
+        </Help>
+      </div>
+      <LineChart unit="pts" points={history.map((p) => ({ x: new Date(p.date).getTime(), y: p.score }))} />
     </div>
   );
 }
@@ -96,20 +176,11 @@ export function Strength() {
       />
       <div className="card">
         <BodyMap colorFor={(m) => scoreColor(muscles[m])} selected={sel} onSelect={(m) => setSel(sel === m ? null : m)} labelFor={(m) => `${MUSCLE_LABELS[m]}: ${muscles[m] === null ? 'no data' : `${levelFor(muscles[m]!)} (${Math.round(muscles[m]!)})`}`} />
-        <div className="legend-ramp" style={{ marginTop: 8 }} />
-        <div className="row between tiny muted">
-          {LEVELS.slice(1).map((l) => (
-            <span key={l.name}>{l.name}</span>
-          ))}
-        </div>
-        {st.length > 0 && (
-          <div className="center" style={{ marginTop: 10 }}>
-            <div className="small muted">Overall strength</div>
-            <div style={{ fontSize: 26, fontWeight: 800 }}>{levelFor(avg)}</div>
-            <div className="small muted num">{Math.round(avg)} / 100 pts</div>
-          </div>
-        )}
+        <StrengthLegend />
       </div>
+
+      {st.length > 0 && <StrengthScoreCard max={st.length} />}
+      <StrengthProgressChart />
 
       {sel && (
         <div className="card accent">

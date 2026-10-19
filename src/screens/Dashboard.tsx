@@ -6,7 +6,7 @@ import { fmtDate, weekKey } from '../lib/util';
 import { BarChart, LineChart, Sparkline } from '../components/Charts';
 import { go, Help, Icon, Segmented, Stat } from '../components/ui';
 import { nextProgramDay } from '../lib/workout';
-import { StrengthMini } from './Strength';
+import { StrengthMini, StrengthProgressChart, StrengthScoreCard } from './Strength';
 import { movingAverage } from './Body';
 import { buildInsights } from '../lib/coach';
 import { goalReport } from '../lib/goals';
@@ -239,6 +239,9 @@ export function Dashboard() {
           }))}
         />
       </div>
+
+      <StrengthScoreCard onClick={() => go('/strength')} />
+      <StrengthProgressChart />
 
       <div className="card" onClick={() => go('/strength')} style={{ cursor: 'pointer' }}>
         <div className="row between">

@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { loadState } from './lib/store';
 import { initSync, setSyncBackend } from './lib/sync';
 import { consumePendingToken } from './lib/googleAuth';
@@ -30,7 +31,10 @@ loadState();
 bootstrapSync();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {/* Above App, so even a crash in App's own render/effects shows a message instead of a blank page. */}
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );
 

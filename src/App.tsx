@@ -69,7 +69,12 @@ export function App() {
   const route = useRoute();
   const s = useAppState();
   const key = route.join('/');
-  useEffect(() => window.scrollTo(0, 0), [key]);
+  // Block body on purpose: a concise arrow would return whatever scrollTo() returns, and
+  // React calls an effect's return value as its cleanup on the next route change — a
+  // non-function there throws out of the commit phase and unmounts the whole app.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [key]);
   if (!loaded) return null;
   const page = route[0] ?? '';
   return (

@@ -244,7 +244,9 @@ export function DialogHost() {
     () => dialog,
   );
   const [text, setText] = useState('');
-  useEffect(() => setText(d?.input ?? ''), [d]);
+  useEffect(() => {
+    setText(d?.input ?? '');
+  }, [d]);
   if (!d) return null;
   const close = (v: string | boolean | null) => {
     setDialog(null);
