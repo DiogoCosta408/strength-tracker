@@ -27,6 +27,8 @@ export const DEFAULT_STATE: AppState = {
   diagnoses: {},
   coachChat: [],
   nutrition: [],
+  tombstones: [],
+  manualMaxUpdatedAt: {},
 };
 
 let state: AppState = DEFAULT_STATE;
@@ -132,6 +134,9 @@ function subscribe(l: () => void) {
   listeners.add(l);
   return () => listeners.delete(l);
 }
+
+/** Notify on every state change (local edits and replaceState alike). Used by the sync scheduler. */
+export const onStateChange = subscribe;
 
 export function useAppState(): AppState {
   return useSyncExternalStore(subscribe, () => state);

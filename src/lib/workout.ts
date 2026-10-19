@@ -3,7 +3,7 @@ import { flattenDays } from '../data/programs';
 import { e1rm, roundTo, rpePercent, warmupRamp } from './calc';
 import { bodyweightAt, getExercise, getProgram, update } from './store';
 import { setE1rm, suggestLoad } from './stats';
-import { clone, uid } from './util';
+import { clone, nowISO, uid } from './util';
 
 export function newSet(partial: Partial<LoggedSet> = {}): LoggedSet {
   return { id: uid(), kind: 'work', weight: 0, reps: 0, done: false, ...partial };
@@ -128,17 +128,21 @@ export function finishActive(): Workout | undefined {
     const exercises = w.exercises
       .map((e) => ({ ...e, sets: e.sets.filter((x) => x.done) }))
       .filter((e) => e.sets.length);
-    finished = { ...w, exercises, finishedAt: new Date().toISOString() };
+    finished = { ...w, exercises, finishedAt: new Date().toISOString(), updatedAt: nowISO() };
     let activeProgram = s.activeProgram;
+    let activeProgramUpdatedAt = s.activeProgramUpdatedAt;
     if (activeProgram && w.programId === activeProgram.programId && w.dayId) {
       const p = getProgram(activeProgram.programId, s);
       if (p) {
         const days = flattenDays(p);
         const idx = days.findIndex((d) => d.day.id === w.dayId);
-        if (idx >= 0) activeProgram = { ...activeProgram, nextIndex: (idx + 1) % days.length };
+        if (idx >= 0) {
+          activeProgram = { ...activeProgram, nextIndex: (idx + 1) % days.length };
+          activeProgramUpdatedAt = nowISO();
+        }
       }
     }
-    return { ...s, workouts: [...s.workouts, finished], activeWorkout: undefined, activeProgram };
+    return { ...s, workouts: [...s.workouts, finished], activeWorkout: undefined, activeProgram, activeProgramUpdatedAt };
   });
   return finished;
 }

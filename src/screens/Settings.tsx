@@ -1,9 +1,127 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import type { AppState, Profile } from '../types';
 import { exerciseName, exportJson, getState, replaceState, update, useAppState } from '../lib/store';
-import { todayISO } from '../lib/util';
-import { ask, askText, go, Icon, NumInput, Segmented, TopBar, toast } from '../components/ui';
+import { nowISO, todayISO } from '../lib/util';
+import { ask, askText, go, Help, Icon, NumInput, Segmented, Sheet, TopBar, toast } from '../components/ui';
 import { seedDemoData } from '../lib/demo';
+import { connectDrive, disconnectDrive, listSnapshots, restoreSnapshot, syncNow, useSyncState, type SnapshotInfo, type SyncStatus } from '../lib/sync';
+
+function relTime(iso: string): string {
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.round(hr / 24)}d ago`;
+}
+
+const STATUS_CLASS: Record<SyncStatus, string> = { disconnected: 'muted', idle: 'muted', syncing: 'muted', synced: 'good', error: 'bad', reconnect: 'warn' };
+
+function CloudSyncCard() {
+  const sync = useSyncState();
+  const [busy, setBusy] = useState(false);
+  const [snapshots, setSnapshots] = useState<SnapshotInfo[] | null>(null);
+
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    try {
+      await fn();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Something went wrong');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const statusText =
+    sync.status === 'syncing'
+      ? 'Syncing…'
+      : sync.status === 'reconnect'
+        ? 'Reconnect needed'
+        : sync.status === 'error'
+          ? `Sync failed${sync.error ? `: ${sync.error}` : ''}`
+          : sync.lastSyncedAt
+            ? `Synced ${relTime(sync.lastSyncedAt)}`
+            : 'Not synced yet';
+
+  return (
+    <>
+      <div className="title-row">
+        <h2 style={{ margin: 0 }}>Cloud sync</h2>
+        <Help title="Cloud sync">
+          <p>Backs up and merges your log with the others — a workout added on one device and a bodyweight entry added on another both end up on both.</p>
+          <p>Data goes into a hidden folder in your own Google Drive that only this app can see. Your Anthropic API key (Coach) is never included.</p>
+          <p>The last 7 daily snapshots are kept in Drive, so you can roll back a bad sync from Restore snapshot.</p>
+          <p>There's no password-free "stay signed in forever" here — if Google says this device's access has expired, you'll see Reconnect; one tap fixes it.</p>
+        </Help>
+      </div>
+      <div className="card">
+        {sync.status === 'disconnected' ? (
+          <>
+            <p className="small muted">Not connected.</p>
+            <button className="btn-primary btn-block" disabled={busy} onClick={() => run(connectDrive)}>
+              {busy ? 'Connecting…' : 'Connect Google Drive'}
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="row between">
+              <span className={`status ${STATUS_CLASS[sync.status]}`}>{statusText}</span>
+            </div>
+            <div className="grid2" style={{ marginTop: 10 }}>
+              {sync.status === 'reconnect' ? (
+                <button className="btn-primary" disabled={busy} onClick={() => run(connectDrive)}>
+                  Reconnect
+                </button>
+              ) : (
+                <button disabled={busy || sync.status === 'syncing'} onClick={() => run(syncNow)}>
+                  Sync now
+                </button>
+              )}
+              <button disabled={busy} onClick={() => run(async () => setSnapshots(await listSnapshots()))}>
+                Restore snapshot…
+              </button>
+            </div>
+            <button
+              className="btn-block btn-danger"
+              style={{ marginTop: 10 }}
+              onClick={async () => {
+                if (await ask('Disconnect Google Drive? Your data stays, but it will stop backing up automatically.', { confirmLabel: 'Disconnect', danger: true })) disconnectDrive();
+              }}
+            >
+              Disconnect
+            </button>
+          </>
+        )}
+      </div>
+      {snapshots && (
+        <Sheet title="Restore snapshot" onClose={() => setSnapshots(null)}>
+          {!snapshots.length && <p className="small muted">No snapshots yet.</p>}
+          <div className="list">
+            {snapshots.map((s) => (
+              <div key={s.fileId} className="row between list-item">
+                <span>{s.date}</span>
+                <button
+                  className="btn-sm"
+                  onClick={async () => {
+                    if (!(await ask(`Replace all current data with the ${s.date} snapshot?`, { confirmLabel: 'Restore', danger: true }))) return;
+                    await run(async () => {
+                      replaceState(await restoreSnapshot(s.fileId));
+                      toast('Snapshot restored');
+                      setSnapshots(null);
+                    });
+                  }}
+                >
+                  Restore
+                </button>
+              </div>
+            ))}
+          </div>
+        </Sheet>
+      )}
+    </>
+  );
+}
 
 export function More() {
   const s = useAppState();
@@ -41,7 +159,7 @@ export function Settings() {
   const s = useAppState();
   const p = s.profile;
   const fileRef = useRef<HTMLInputElement>(null);
-  const set = (patch: Partial<Profile>) => update((st) => ({ ...st, profile: { ...st.profile, ...patch } }));
+  const set = (patch: Partial<Profile>) => update((st) => ({ ...st, profile: { ...st.profile, ...patch, updatedAt: nowISO() } }));
   const theme = (document.documentElement.dataset.theme as 'light' | 'dark' | undefined) ?? 'auto';
 
   const doExport = () => {
@@ -168,9 +286,11 @@ export function Settings() {
         />
       </div>
 
+      <CloudSyncCard />
+
       <h2>Your data</h2>
       <div className="card">
-        <p className="small muted">Stored on this device only. Export a backup regularly.</p>
+        <p className="small muted">A one-off manual backup, on top of Cloud sync above.</p>
         <div className="grid2" style={{ marginTop: 8 }}>
           <button onClick={doExport}>Export backup</button>
           <button onClick={() => fileRef.current?.click()}>Import backup</button>
@@ -211,7 +331,24 @@ export function Settings() {
           style={{ marginTop: 10 }}
           onClick={async () => {
             if ((await ask('Delete ALL workouts, programs and bodyweight entries? This cannot be undone.', { confirmLabel: 'Delete everything', danger: true })) && (await ask('Really delete everything?', { confirmLabel: 'Yes, delete', danger: true }))) {
-              replaceState({ ...getState(), workouts: [], programs: [], bodyweight: [], customExercises: [], manualMaxes: {}, diagnoses: {}, coachChat: [], nutrition: [], goals: undefined, activeWorkout: undefined, activeProgram: undefined });
+              replaceState({
+                ...getState(),
+                workouts: [],
+                programs: [],
+                bodyweight: [],
+                customExercises: [],
+                manualMaxes: {},
+                manualMaxUpdatedAt: {},
+                diagnoses: {},
+                coachChat: [],
+                nutrition: [],
+                goals: undefined,
+                goalsUpdatedAt: nowISO(),
+                activeWorkout: undefined,
+                activeProgram: undefined,
+                activeProgramUpdatedAt: nowISO(),
+                tombstones: [],
+              });
               toast('All data deleted');
             }
           }}

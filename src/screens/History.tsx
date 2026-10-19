@@ -4,7 +4,7 @@ import { fmtKg } from '../lib/calc';
 import { getExercise, update, useAppState } from '../lib/store';
 import { finishedWorkouts, isWorkSet, setE1rm, workoutPRs, workoutTonnage } from '../lib/stats';
 import { startWorkout } from '../lib/workout';
-import { fmtDate, fmtDuration, weekKey } from '../lib/util';
+import { fmtDate, fmtDuration, nowISO, weekKey } from '../lib/util';
 import { ask, go, Icon, NumInput, TopBar, toast } from '../components/ui';
 
 export function HistoryList() {
@@ -66,7 +66,7 @@ export function WorkoutDetail({ id }: { id: string }) {
   const prKeys = new Set(prs.map((p) => p.exerciseId));
   const bw = w.bodyweight;
 
-  const save = (next: Workout) => update((st) => ({ ...st, workouts: st.workouts.map((x) => (x.id === id ? next : x)) }));
+  const save = (next: Workout) => update((st) => ({ ...st, workouts: st.workouts.map((x) => (x.id === id ? { ...next, updatedAt: nowISO() } : x)) }));
 
   return (
     <div>
@@ -158,7 +158,7 @@ export function WorkoutDetail({ id }: { id: string }) {
           className="grow btn-danger"
           onClick={async () => {
             if (!(await ask('Delete this workout permanently?', { confirmLabel: 'Delete', danger: true }))) return;
-            update((st) => ({ ...st, workouts: st.workouts.filter((x) => x.id !== id) }));
+            update((st) => ({ ...st, workouts: st.workouts.filter((x) => x.id !== id), tombstones: [...(st.tombstones ?? []), { collection: 'workouts', id, deletedAt: nowISO() }] }));
             go('/history');
           }}
         >

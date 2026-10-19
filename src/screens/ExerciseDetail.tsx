@@ -3,7 +3,7 @@ import { CATEGORY_LABELS, EQUIPMENT_LABELS, MUSCLE_LABELS } from '../data/exerci
 import { fmtKg } from '../lib/calc';
 import { bodyweightAt, getExercise, update, useAppState } from '../lib/store';
 import { bestE1rm, exerciseHistory, repMaxes } from '../lib/stats';
-import { fmtDate } from '../lib/util';
+import { fmtDate, nowISO } from '../lib/util';
 import { LineChart } from '../components/Charts';
 import { ExerciseList } from '../components/ExercisePicker';
 import { go, Help, NumInput, Segmented, Stat, TopBar } from '../components/ui';
@@ -76,7 +76,7 @@ export function ExerciseDetail({ id }: { id: string }) {
                 const m = { ...st.manualMaxes };
                 if (v) m[id] = v;
                 else delete m[id];
-                return { ...st, manualMaxes: m };
+                return { ...st, manualMaxes: m, manualMaxUpdatedAt: { ...st.manualMaxUpdatedAt, [id]: nowISO() } };
               })
             }
           />

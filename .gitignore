@@ -1,3 +1,5 @@
 node_modules
 dist
 *.program.json
+.env.local
+.env.*.local

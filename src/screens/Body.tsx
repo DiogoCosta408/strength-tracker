@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { fmtKg } from '../lib/calc';
 import { update, useAppState } from '../lib/store';
-import { fmtDate, todayISO, uid } from '../lib/util';
+import { fmtDate, nowISO, todayISO, uid } from '../lib/util';
 import { LineChart, type Point } from '../components/Charts';
 import { Icon, NumInput, Segmented, Stat, TopBar, toast } from '../components/ui';
 
@@ -40,8 +40,8 @@ export function Body() {
     if (!w && !kcal) return;
     update((st) => ({
       ...st,
-      bodyweight: w ? [...st.bodyweight.filter((b) => b.date !== date), { id: uid(), date, weight: w }] : st.bodyweight,
-      nutrition: kcal ? [...st.nutrition.filter((n) => n.date !== date), { id: uid(), date, kcal, protein }] : st.nutrition,
+      bodyweight: w ? [...st.bodyweight.filter((b) => b.date !== date), { id: uid(), date, weight: w, updatedAt: nowISO() }] : st.bodyweight,
+      nutrition: kcal ? [...st.nutrition.filter((n) => n.date !== date), { id: uid(), date, kcal, protein, updatedAt: nowISO() }] : st.nutrition,
     }));
     setKcal(undefined);
     setProtein(undefined);
@@ -100,7 +100,7 @@ export function Body() {
               <span className="grow">{fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
               {intake.get(e.date) && <span className="small muted num">{intake.get(e.date)!.kcal} kcal</span>}
               <span className="bold num">{fmtKg(e.weight)} kg</span>
-              <button className="btn-ghost icon-btn" aria-label="Delete entry" onClick={() => update((st) => ({ ...st, bodyweight: st.bodyweight.filter((b) => b.id !== e.id) }))}>
+              <button className="btn-ghost icon-btn" aria-label="Delete entry" onClick={() => update((st) => ({ ...st, bodyweight: st.bodyweight.filter((b) => b.id !== e.id), tombstones: [...(st.tombstones ?? []), { collection: 'bodyweight', id: e.id, deletedAt: nowISO() }] }))}>
                 <Icon name="trash" size={16} />
               </button>
             </div>

@@ -4,7 +4,7 @@ import { flattenDays } from '../data/programs';
 import { allPrograms, exerciseName, getProgram, getState, update, useAppState } from '../lib/store';
 import { suggestLoad } from '../lib/stats';
 import { duplicateProgram, startWorkout } from '../lib/workout';
-import { clone, uid } from '../lib/util';
+import { clone, nowISO, uid } from '../lib/util';
 import { fmtKg } from '../lib/calc';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { ask, go, Icon, NumInput, TopBar, toast } from '../components/ui';
@@ -34,10 +34,10 @@ async function importProgramFile(file: File): Promise<Program | undefined> {
   }
   const existing = getState().programs.find((x) => x.id === p.id);
   if (existing && !(await ask(`Replace your existing “${existing.name}”?`, { confirmLabel: 'Replace' }))) return;
-  const program: Program = { ...p, id: p.id || 'user-' + uid(), builtIn: false };
+  const program: Program = { ...p, id: p.id || 'user-' + uid(), builtIn: false, updatedAt: nowISO() };
   update((st) => {
     const known = new Set(st.customExercises.map((e) => e.id));
-    const newEx = (data.customExercises ?? []).filter((e) => !known.has(e.id)).map((e) => ({ ...e, custom: true }));
+    const newEx = (data.customExercises ?? []).filter((e) => !known.has(e.id)).map((e) => ({ ...e, custom: true, updatedAt: nowISO() }));
     return { ...st, customExercises: [...st.customExercises, ...newEx], programs: [...st.programs.filter((x) => x.id !== program.id), program] };
   });
   toast(`Imported ${program.name}`);
@@ -59,7 +59,7 @@ export function ProgramList() {
   const programs = allPrograms(s);
   const fileRef = useRef<HTMLInputElement>(null);
   const create = () => {
-    const p: Program = { id: 'user-' + uid(), name: 'My program', description: '', weeks: [{ name: 'Week 1', days: [{ id: uid(), name: 'Day 1', exercises: [] }] }] };
+    const p: Program = { id: 'user-' + uid(), name: 'My program', description: '', weeks: [{ name: 'Week 1', days: [{ id: uid(), name: 'Day 1', exercises: [] }] }], updatedAt: nowISO() };
     update((st) => ({ ...st, programs: [...st.programs, p] }));
     go(`/program-edit/${p.id}`);
   };
@@ -152,7 +152,7 @@ export function ProgramDetail({ id }: { id: string }) {
         <button
           className={`grow ${active ? '' : 'btn-primary'}`}
           onClick={() =>
-            update((st) => ({ ...st, activeProgram: active ? undefined : { programId: p.id, nextIndex: 0 } }))
+            update((st) => ({ ...st, activeProgram: active ? undefined : { programId: p.id, nextIndex: 0 }, activeProgramUpdatedAt: nowISO() }))
           }
         >
           {active ? 'Stop following' : 'Follow this program'}
@@ -160,7 +160,7 @@ export function ProgramDetail({ id }: { id: string }) {
         <button
           className="grow"
           onClick={() => {
-            const c = duplicateProgram(p);
+            const c = { ...duplicateProgram(p), updatedAt: nowISO() };
             update((st) => ({ ...st, programs: [...st.programs, c] }));
             go(`/program-edit/${c.id}`);
           }}
@@ -251,6 +251,7 @@ export function ProgramEditor({ id }: { id: string }) {
         if (x.id !== id) return x;
         const c = clone(x);
         fn(c);
+        c.updatedAt = nowISO();
         return c;
       }),
     }));
@@ -394,7 +395,13 @@ export function ProgramEditor({ id }: { id: string }) {
         style={{ marginTop: 20 }}
         onClick={async () => {
           if (!(await ask('Delete this program?', { confirmLabel: 'Delete', danger: true }))) return;
-          update((st) => ({ ...st, programs: st.programs.filter((x) => x.id !== id), activeProgram: st.activeProgram?.programId === id ? undefined : st.activeProgram }));
+          update((st) => ({
+            ...st,
+            programs: st.programs.filter((x) => x.id !== id),
+            tombstones: [...(st.tombstones ?? []), { collection: 'programs', id, deletedAt: nowISO() }],
+            activeProgram: st.activeProgram?.programId === id ? undefined : st.activeProgram,
+            activeProgramUpdatedAt: st.activeProgram?.programId === id ? nowISO() : st.activeProgramUpdatedAt,
+          }));
           go('/programs');
         }}
       >

@@ -78,6 +78,8 @@ export interface Exercise {
   /** Short description of the variation (e.g. "2s pause at the bottom"). */
   notes?: string;
   custom?: boolean;
+  /** For sync merge: last edited. Only set on custom exercises. */
+  updatedAt?: string;
 }
 
 export type SetKind = 'warmup' | 'work' | 'top' | 'backoff' | 'amrap';
@@ -125,6 +127,8 @@ export interface Program {
   level?: 'beginner' | 'intermediate' | 'advanced';
   weeks: ProgramWeek[];
   builtIn?: boolean;
+  /** For sync merge: last edited. Absent on built-ins (never synced). */
+  updatedAt?: string;
 }
 
 export interface LoggedSet {
@@ -159,12 +163,16 @@ export interface Workout {
   bodyweight?: number;
   exercises: LoggedExercise[];
   notes?: string;
+  /** For sync merge: last edited (set when finished, bumped on later edits). */
+  updatedAt?: string;
 }
 
 export interface BodyweightEntry {
   id: string;
   date: string; // YYYY-MM-DD
   weight: number;
+  /** For sync merge: last edited. */
+  updatedAt?: string;
 }
 
 export type Sex = 'male' | 'female';
@@ -175,6 +183,8 @@ export interface NutritionEntry {
   date: string; // YYYY-MM-DD
   kcal: number;
   protein?: number;
+  /** For sync merge: last edited. */
+  updatedAt?: string;
 }
 
 export interface LiftGoal {
@@ -207,6 +217,8 @@ export interface Profile {
   activity?: 'low' | 'moderate' | 'high';
   /** Which formula to use for e1RM when no RPE is logged. */
   e1rmFormula: 'epley' | 'brzycki';
+  /** For sync merge: last edited. */
+  updatedAt?: string;
 }
 
 export interface ActiveProgram {
@@ -232,6 +244,18 @@ export interface CoachMessage {
   error?: boolean;
 }
 
+// Sync ------------------------------------------------------------------------
+
+/** Collections that support an explicit delete action and so need a tombstone to merge deletions. */
+export type SyncCollection = 'workouts' | 'bodyweight' | 'programs';
+
+/** Marks a deleted record so a merge with a device that still has it doesn't resurrect it. */
+export interface Tombstone {
+  collection: SyncCollection;
+  id: string;
+  deletedAt: string;
+}
+
 export interface AppState {
   version: 1;
   profile: Profile;
@@ -249,4 +273,11 @@ export interface AppState {
   coachChat: CoachMessage[];
   goals?: Goals;
   nutrition: NutritionEntry[];
+  /** Deletions for workouts/bodyweight/programs, for sync merge. */
+  tombstones?: Tombstone[];
+  /** Per-exercise timestamp for `manualMaxes`, since that record has no per-entry field of its own. */
+  manualMaxUpdatedAt?: Record<string, string>;
+  /** Sibling timestamps for the nullable whole-object fields, so a deletion still carries a comparable time. */
+  goalsUpdatedAt?: string;
+  activeProgramUpdatedAt?: string;
 }

@@ -5,7 +5,7 @@ import { bodyweightAt, exerciseName, update, useAppState } from '../lib/store';
 import { bestE1rm } from '../lib/stats';
 import { goalReport, targetForLevel, type Feasibility, type LiftGoalStatus } from '../lib/goals';
 import { LEVELS } from '../lib/strength';
-import { fmtDate, todayISO } from '../lib/util';
+import { fmtDate, nowISO, todayISO } from '../lib/util';
 import { ask, go, Help, NumInput, Segmented, Sheet, toast } from '../components/ui';
 
 const GOAL_LIFTS = ['squat', 'bench-press', 'deadlift', 'press'];
@@ -35,8 +35,8 @@ export function GoalsPanel({ onAsk }: { onAsk: (text: string) => void }) {
     );
 
   const g = s.goals;
-  const setTarget = (exerciseId: string, target: number) => update((st) => ({ ...st, goals: st.goals && { ...st.goals, lifts: st.goals.lifts.map((l) => (l.exerciseId === exerciseId ? { ...l, target } : l)) } }));
-  const setDate = (d: string) => update((st) => ({ ...st, goals: st.goals && { ...st.goals, targetDate: d } }));
+  const setTarget = (exerciseId: string, target: number) => update((st) => ({ ...st, goals: st.goals && { ...st.goals, lifts: st.goals.lifts.map((l) => (l.exerciseId === exerciseId ? { ...l, target } : l)) }, goalsUpdatedAt: nowISO() }));
+  const setDate = (d: string) => update((st) => ({ ...st, goals: st.goals && { ...st.goals, targetDate: d }, goalsUpdatedAt: nowISO() }));
 
   return (
     <div>
@@ -100,7 +100,7 @@ export function GoalsPanel({ onAsk }: { onAsk: (text: string) => void }) {
           {(report.bodyweight.adjustedTarget || report.bodyweight.adjustedDate) && (
             <div className="row wrap" style={{ marginTop: 8 }}>
               {report.bodyweight.adjustedTarget && (
-                <button className="btn-sm" onClick={() => update((st) => ({ ...st, goals: st.goals && { ...st.goals, bodyweight: report.bodyweight!.adjustedTarget } }))}>
+                <button className="btn-sm" onClick={() => update((st) => ({ ...st, goals: st.goals && { ...st.goals, bodyweight: report.bodyweight!.adjustedTarget }, goalsUpdatedAt: nowISO() }))}>
                   Set target to {report.bodyweight.adjustedTarget} kg
                 </button>
               )}
@@ -251,7 +251,7 @@ function GoalEditor({ onClose }: { onClose: () => void }) {
       // Keep the original starting point when editing an existing goal.
       start: g?.start ?? { lifts: Object.fromEntries(GOAL_LIFTS.map((id) => [id, bestE1rm(s, id, 42) || bestE1rm(s, id)])), bodyweight: bwNow },
     };
-    update((st) => ({ ...st, goals: next, profile: { ...st.profile, heightCm: height, activity } }));
+    update((st) => ({ ...st, goals: next, goalsUpdatedAt: nowISO(), profile: { ...st.profile, heightCm: height, activity, updatedAt: nowISO() } }));
     toast('Goal saved');
     onClose();
   };
@@ -317,7 +317,7 @@ function GoalEditor({ onClose }: { onClose: () => void }) {
         </label>
         <label className="field">
           <span>Birth year</span>
-          <NumInput value={s.profile.birthYear} onChange={(v) => update((st) => ({ ...st, profile: { ...st.profile, birthYear: v ? Math.round(v) : undefined } }))} />
+          <NumInput value={s.profile.birthYear} onChange={(v) => update((st) => ({ ...st, profile: { ...st.profile, birthYear: v ? Math.round(v) : undefined, updatedAt: nowISO() } }))} />
         </label>
       </div>
       <label className="field">
@@ -331,7 +331,7 @@ function GoalEditor({ onClose }: { onClose: () => void }) {
             className="btn-danger grow"
             onClick={async () => {
               if (await ask('Delete this goal?', { confirmLabel: 'Delete', danger: true })) {
-                update((st) => ({ ...st, goals: undefined }));
+                update((st) => ({ ...st, goals: undefined, goalsUpdatedAt: nowISO() }));
                 onClose();
               }
             }}

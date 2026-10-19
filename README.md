@@ -32,6 +32,7 @@ A mobile-first strength training log for powerlifters and barbell athletes. It r
 - **Bodyweight tracker** with a 7-day moving average and optional daily calories / protein.
 - **Share best lifts**: pick which lifts to share. It builds a PNG card (optional total, DOTS/Wilks and muscle map) and opens the native share sheet, or copies the lifts as text.
 - **Data**:
+  - **Cloud sync**: automatic backup and merge across devices via your own Google Drive (Settings → Cloud sync). See setup below.
   - export/import a JSON backup, either as a file or as copied text
   - CSV export of all sets
   - demo data, for trying the app out
@@ -50,7 +51,7 @@ npm run build      # static build in dist/
 
 Deploy `dist/` to any static HTTPS host, such as GitHub Pages, Netlify, Cloudflare Pages or Vercel. The build uses relative paths, so it also works from a sub-path. Then open the site on your phone and choose **Add to Home Screen** (Safari share menu on iOS, Chrome menu on Android). The service worker caches the app so it works offline at the gym.
 
-Data lives in the browser's IndexedDB on that device. Export a backup regularly from Settings, especially before switching phones or clearing browser data.
+Data lives in the browser's IndexedDB on that device. Connect **Cloud sync** in Settings to back it up and keep it in sync with your other devices (see below), and/or export a backup regularly from Settings — especially before switching phones or clearing browser data.
 
 ## Code map
 
@@ -64,6 +65,11 @@ Data lives in the browser's IndexedDB on that device. Export a backup regularly 
 | `src/lib/coach.ts` | Training analysis: trends, stalls, fatigue, volume/intensity, insights, AI context summary |
 | `src/lib/goals.ts` | Goal feasibility, projections, adjusted targets, calorie and macro plan |
 | `src/lib/coachAi.ts` | Claude API client for the chat coach (streaming, prompt caching, refusal fallback) |
+| `src/lib/merge.ts` | Pure merge logic for cloud sync (union by id, tombstones, last-write-wins) |
+| `src/lib/sync.ts` | Sync scheduling and state: debounce, connect/sync/disconnect, snapshots |
+| `src/lib/googleAuth.ts` | Google Identity Services OAuth token client (Drive appDataFolder scope) |
+| `src/lib/googleDrive.ts` | Drive v3 REST calls, scoped to the hidden appDataFolder |
+| `src/lib/googleDriveMock.ts` | Dev-only stand-in for the two above, used with no OAuth client id configured |
 | `src/data/coachKnowledge.ts` | Diagnostic questions and weak-point → variation/cue/programming knowledge base |
 | `src/data/exercises.ts` | Exercise library |
 | `src/data/programs.ts` | Built-in program templates |
@@ -76,6 +82,25 @@ Data lives in the browser's IndexedDB on that device. Export a backup regularly 
 2. Open **Coach → Ask coach** and paste the key.
 
 Requests go directly from the device to the Claude API (`claude-opus-5-5`, streaming, with the server-side refusal fallback enabled). The key is kept in that browser's localStorage, outside the backup file. Anyone with access to the unlocked device could read it, so use a key with a spending limit.
+
+## Cloud sync setup
+
+Cloud sync stores a backup in a hidden folder in your own Google Drive (`appDataFolder` — not visible in Drive's normal UI, and only this app can read it) and merges per record by id, so new data from two devices is unioned rather than one device's data overwriting the other's. There's no server of any kind involved; it's pure browser-side OAuth.
+
+**1. Google Cloud Console** (one-time, per deployment):
+
+1. Create a project at [console.cloud.google.com](https://console.cloud.google.com) (or reuse one).
+2. **APIs & Services → Enabled APIs** → enable the **Google Drive API**.
+3. **APIs & Services → OAuth consent screen**: set it up for **External** users (or Internal if you're on Google Workspace), add the `drive.appdata` scope, and add your own Google account as a test user if the app stays in "Testing" status (fine for personal use — no verification needed since the scope is non-sensitive and limited to the app's own hidden folder).
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID**, type **Web application**. Add **Authorized JavaScript origins**: your Vercel domain (e.g. `https://strength-tracker.vercel.app`) and `http://localhost:5173` for local dev. No redirect URI is needed — this uses the implicit token flow, entirely in the browser.
+5. Copy the generated **Client ID**.
+
+**2. App configuration:**
+
+- Local dev: copy `.env.example` to `.env.local` and set `VITE_GOOGLE_CLIENT_ID` to the client id. Restart `npm run dev`. Without this, Settings → Cloud sync falls back to an in-browser mock of Drive (clickable, but nothing really leaves the device) and logs a warning to the console.
+- Vercel: in the project's **Settings → Environment Variables**, add `VITE_GOOGLE_CLIENT_ID` with the same value, then redeploy.
+
+**Limitations:** this is a backend-free OAuth flow, so there's no refresh token — the app re-authenticates silently using the browser's existing Google session. If that session is gone (cookies cleared, consent revoked, a long time since last use), Settings will show **Reconnect**; one tap re-opens Google's consent popup. The last 7 daily snapshots are kept in Drive so a bad sync can be rolled back from **Restore snapshot**.
 
 ## Notes
 

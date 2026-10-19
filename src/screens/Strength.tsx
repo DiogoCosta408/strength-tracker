@@ -7,6 +7,7 @@ import { standings } from '../lib/stats';
 import { LEVELS, levelFor, LIFT_LABELS, LIFT_MUSCLES, loadForLevel, muscleScores, scoreColor } from '../lib/strength';
 import { BodyMap } from '../components/BodyMap';
 import { go, Help, NumInput, Sheet, TopBar } from '../components/ui';
+import { nowISO } from '../lib/util';
 
 const STANDARD_IDS: Record<StandardLift, string> = {
   squat: 'squat',
@@ -219,7 +220,7 @@ function ManualMaxSheet({ lift, onClose }: { lift: StandardLift; onClose: () => 
               const m = { ...st.manualMaxes };
               if (v) m[id] = v;
               else delete m[id];
-              return { ...st, manualMaxes: m };
+              return { ...st, manualMaxes: m, manualMaxUpdatedAt: { ...st.manualMaxUpdatedAt, [id]: nowISO() } };
             });
             onClose();
           }}
