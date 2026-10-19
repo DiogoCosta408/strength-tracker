@@ -11,6 +11,8 @@ import { movingAverage } from './Body';
 import { buildInsights } from '../lib/coach';
 import { goalReport } from '../lib/goals';
 
+const WELCOME_DISMISSED_KEY = 'welcome-dismissed';
+
 const MAIN_LIFTS = [
   { id: 'squat', label: 'Squat' },
   { id: 'bench-press', label: 'Bench' },
@@ -20,6 +22,13 @@ const MAIN_LIFTS = [
 
 export function Dashboard() {
   const s = useAppState();
+  const [welcomeDismissed, setWelcomeDismissed] = useState(() => {
+    try {
+      return localStorage.getItem(WELCOME_DISMISSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
   const [lift, setLift] = useState('squat');
   const [volMetric, setVolMetric] = useState<'tonnage' | 'hardSets'>('tonnage');
   const workouts = finishedWorkouts(s);
@@ -84,9 +93,25 @@ export function Dashboard() {
         </button>
       )}
 
-      {!workouts.length && (
+      {!workouts.length && !welcomeDismissed && (
         <div className="card" style={{ marginTop: 12 }}>
-          <h3>Welcome 👋</h3>
+          <div className="row between">
+            <h3 style={{ margin: 0 }}>Welcome 👋</h3>
+            <button
+              className="btn-ghost icon-btn"
+              aria-label="Dismiss"
+              onClick={() => {
+                try {
+                  localStorage.setItem(WELCOME_DISMISSED_KEY, '1');
+                } catch {
+                  /* storage unavailable */
+                }
+                setWelcomeDismissed(true);
+              }}
+            >
+              <Icon name="close" size={18} />
+            </button>
+          </div>
           <p className="small">Quick setup to get the most out of the app:</p>
           <ol className="small" style={{ paddingLeft: 18, margin: '6px 0' }}>
             <li>
