@@ -7,7 +7,7 @@ import { addWarmups, discardActive, emptyExercise, finishActive, newSet, reflowS
 import { fmtDate, fmtDuration, uid, todayISO } from '../lib/util';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { startRest } from '../components/RestTimer';
-import { ask, askText, go, Icon, NumInput, Sheet, toast } from '../components/ui';
+import { ask, askText, go, Help, Icon, NumInput, Sheet, toast } from '../components/ui';
 
 const KIND_CYCLE: SetKind[] = ['work', 'top', 'backoff', 'amrap', 'warmup'];
 const KIND_LABEL: Record<SetKind, string> = { warmup: 'W', work: '', top: 'T', backoff: 'B', amrap: 'A' };
@@ -217,13 +217,19 @@ function ExerciseCard({ le, index, count, workout, onReplace }: { le: LoggedExer
           'First time logging this exercise'
         )}
       </div>
-      <div className="small num" style={{ marginTop: 2 }}>
+      <div className="small num title-row" style={{ marginTop: 2, flexWrap: 'wrap' }}>
         {best > 0 && <span className="muted">Best e1RM {fmtKg(best - (ex?.bodyweightLoaded ? bw ?? 0 : 0))} kg</span>}
         {todayBest > 0 && (
           <span className={todayBest > best ? 'good bold' : 'muted'}>
-            {' '}
-            · Today {fmtKg(todayBest - (ex?.bodyweightLoaded ? bw ?? 0 : 0))} {todayBest > best && best > 0 ? '▲ PR' : ''}
+            {best > 0 ? '· ' : ''}Today's e1RM {fmtKg(todayBest - (ex?.bodyweightLoaded ? bw ?? 0 : 0))} kg {todayBest > best && best > 0 ? '▲ PR' : ''}
           </span>
+        )}
+        {(best > 0 || todayBest > 0) && (
+          <Help title="e1RM">
+            <p><b>Estimated 1-rep max</b> — what a set suggests you could lift for one all-out single, worked out from the weight, reps and RPE you logged.</p>
+            <p>It's what makes sessions comparable when the rep ranges differ: 100 kg × 5 @ RPE 8 and 115 kg × 3 @ RPE 8 are roughly the same e1RM, so you can see progress without testing a true max.</p>
+            <p><b>Best</b> is your highest ever for this exercise; <b>Today's</b> is the best from this session, and turns green with ▲ PR when it beats it.</p>
+          </Help>
         )}
       </div>
       {le.notes && <div className="small" style={{ marginTop: 4 }}>📝 {le.notes}</div>}

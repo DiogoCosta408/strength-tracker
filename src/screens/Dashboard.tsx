@@ -5,13 +5,24 @@ import { bestE1rm, exerciseHistory, finishedWorkouts, trainingStreakWeeks, weekl
 import { fmtDate, weekKey } from '../lib/util';
 import { BarChart, LineChart, Sparkline } from '../components/Charts';
 import { go, Help, Icon, Segmented, Stat } from '../components/ui';
-import { nextProgramDay } from '../lib/workout';
+import { flattenDays } from '../data/programs';
+import { nextProgramDay, nextSessionDate } from '../lib/workout';
 import { StrengthMini, StrengthProgressChart, StrengthScoreCard } from './Strength';
 import { movingAverage } from './Body';
 import { buildInsights } from '../lib/coach';
 import { goalReport } from '../lib/goals';
 
 const WELCOME_DISMISSED_KEY = 'welcome-dismissed';
+
+/** "Today" / "Tomorrow" / "Thu 23 Oct", for the next planned session. */
+function dayLabel(date: Date): string {
+  const midnight = new Date();
+  midnight.setHours(0, 0, 0, 0);
+  const days = Math.round((date.getTime() - midnight.getTime()) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  return fmtDate(date.toISOString(), { weekday: 'short', day: 'numeric', month: 'short' });
+}
 
 const MAIN_LIFTS = [
   { id: 'squat', label: 'Squat' },
@@ -34,6 +45,8 @@ export function Dashboard() {
   const workouts = finishedWorkouts(s);
   const bw = bodyweightAt(s);
   const next = nextProgramDay(s);
+  const dueDate = useMemo(() => nextSessionDate(s), [s]);
+  const perWeek = next ? Math.round((flattenDays(next.program).length / Math.max(1, next.program.weeks.length)) * 10) / 10 : 0;
 
   const lifts = useMemo(
     () =>
@@ -91,6 +104,18 @@ export function Dashboard() {
         <button className="btn-primary btn-block" onClick={() => go('/train')}>
           {next ? `Start ${next.day.name} · ${next.program.name}` : 'Start a workout'}
         </button>
+      )}
+
+      {!s.activeWorkout && next && dueDate && (
+        <div className="title-row small muted" style={{ justifyContent: 'center', marginTop: 6 }}>
+          <span>
+            Next session <b style={{ color: 'var(--text)' }}>{dayLabel(dueDate)}</b>
+          </span>
+          <Help title="Next session">
+            <p>Programs are a list of sessions in order, not fixed calendar dates — so this spaces them by how often {next.program.name} trains ({perWeek}× a week), counting from your last logged session.</p>
+            <p>Train earlier or later whenever you like; it just shows when you're next due, and says today once you are.</p>
+          </Help>
+        </div>
       )}
 
       {!workouts.length && !welcomeDismissed && (

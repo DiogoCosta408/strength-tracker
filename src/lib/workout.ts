@@ -160,6 +160,29 @@ export function nextProgramDay(s: AppState): { program: Program; day: ProgramDay
   return d ? { program: p, day: d.day, week: d.week } : undefined;
 }
 
+/**
+ * When the next planned session is due. Programs are ordered lists of days with no calendar
+ * dates, so this spaces sessions by the program's own weekly frequency (its days ÷ its weeks)
+ * counting from the last session logged. Never points at the past: if you're due or overdue
+ * it returns today.
+ */
+export function nextSessionDate(s: AppState, now = new Date()): Date | undefined {
+  const next = nextProgramDay(s);
+  if (!next) return undefined;
+  const perWeek = flattenDays(next.program).length / Math.max(1, next.program.weeks.length);
+  const interval = Math.max(1, Math.round(7 / Math.max(1, perWeek)));
+
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const today = startOfDay(now);
+  const finished = s.workouts.filter((w) => w.finishedAt).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+  const last = finished[finished.length - 1];
+  if (!last) return today;
+
+  const due = startOfDay(new Date(last.finishedAt ?? last.startedAt));
+  due.setDate(due.getDate() + interval);
+  return due < today ? today : due;
+}
+
 export function duplicateProgram(p: Program): Program {
   const c = clone(p);
   c.id = 'user-' + uid();
