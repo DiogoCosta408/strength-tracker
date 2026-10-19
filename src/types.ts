@@ -1,0 +1,201 @@
+// Core domain types. All weights are stored in kilograms.
+
+export type Muscle =
+  | 'chest'
+  | 'frontDelts'
+  | 'sideDelts'
+  | 'rearDelts'
+  | 'triceps'
+  | 'biceps'
+  | 'forearms'
+  | 'traps'
+  | 'upperBack'
+  | 'lats'
+  | 'lowerBack'
+  | 'abs'
+  | 'obliques'
+  | 'glutes'
+  | 'quads'
+  | 'hamstrings'
+  | 'adductors'
+  | 'calves';
+
+export type ExerciseCategory =
+  | 'squat'
+  | 'bench'
+  | 'deadlift'
+  | 'press'
+  | 'olympic'
+  | 'pull'
+  | 'row'
+  | 'legs'
+  | 'chest'
+  | 'shoulders'
+  | 'arms'
+  | 'back'
+  | 'core'
+  | 'conditioning';
+
+export type Equipment =
+  | 'barbell'
+  | 'dumbbell'
+  | 'machine'
+  | 'cable'
+  | 'bodyweight'
+  | 'kettlebell'
+  | 'band'
+  | 'specialty-bar'
+  | 'other';
+
+/** Canonical lifts used for strength standards and the muscle map. */
+export type StandardLift =
+  | 'squat'
+  | 'frontSquat'
+  | 'bench'
+  | 'inclineBench'
+  | 'deadlift'
+  | 'sumoDeadlift'
+  | 'press'
+  | 'powerClean'
+  | 'row'
+  | 'chinup'
+  | 'pullup'
+  | 'dip'
+  | 'rdl'
+  | 'hipThrust';
+
+export interface Exercise {
+  id: string;
+  name: string;
+  category: ExerciseCategory;
+  equipment: Equipment;
+  primary: Muscle[];
+  secondary: Muscle[];
+  /** True when bodyweight is part of the load (pull-ups, dips): logged weight = added weight. */
+  bodyweightLoaded?: boolean;
+  /** If set, best e1RM for this exercise counts toward that canonical lift's strength score. */
+  standard?: StandardLift;
+  /** Short description of the variation (e.g. "2s pause at the bottom"). */
+  notes?: string;
+  custom?: boolean;
+}
+
+export type SetKind = 'warmup' | 'work' | 'top' | 'backoff' | 'amrap';
+
+/** One prescribed set in a template. */
+export interface SetPrescription {
+  kind: SetKind;
+  reps: number;
+  /** Target RPE (6-10, step 0.5). Load is suggested from e1RM when present. */
+  rpe?: number;
+  /** Percent of 1RM / training max (0-100+). */
+  percent?: number;
+  /** Fixed load in kg. */
+  weight?: number;
+  /** Backoff: percent of the session's top set load (e.g. 90 = top set -10%). */
+  percentOfTop?: number;
+  /** Linear progression: last completed working load for this exercise + increment (kg). */
+  lpIncrement?: number;
+}
+
+export interface ExercisePrescription {
+  exerciseId: string;
+  sets: SetPrescription[];
+  notes?: string;
+  /** Rest in seconds between sets. */
+  rest?: number;
+}
+
+export interface ProgramDay {
+  id: string;
+  name: string;
+  exercises: ExercisePrescription[];
+}
+
+export interface ProgramWeek {
+  name: string;
+  days: ProgramDay[];
+}
+
+export interface Program {
+  id: string;
+  name: string;
+  author?: string;
+  description: string;
+  level?: 'beginner' | 'intermediate' | 'advanced';
+  weeks: ProgramWeek[];
+  builtIn?: boolean;
+}
+
+export interface LoggedSet {
+  id: string;
+  kind: SetKind;
+  weight: number;
+  reps: number;
+  rpe?: number;
+  done: boolean;
+  /** What the template asked for, kept for reference. */
+  target?: SetPrescription;
+}
+
+export interface LoggedExercise {
+  id: string;
+  exerciseId: string;
+  sets: LoggedSet[];
+  notes?: string;
+  rest?: number;
+}
+
+export interface Workout {
+  id: string;
+  name: string;
+  /** ISO timestamp. */
+  startedAt: string;
+  finishedAt?: string;
+  programId?: string;
+  dayId?: string;
+  bodyweight?: number;
+  exercises: LoggedExercise[];
+  notes?: string;
+}
+
+export interface BodyweightEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  weight: number;
+}
+
+export type Sex = 'male' | 'female';
+
+export interface Profile {
+  name: string;
+  sex: Sex;
+  birthYear?: number;
+  barWeight: number;
+  /** Smallest load jump available (kg) – used for rounding suggestions. */
+  rounding: number;
+  /** Plates available per side, kg. */
+  plates: number[];
+  defaultRest: number;
+  /** Which formula to use for e1RM when no RPE is logged. */
+  e1rmFormula: 'epley' | 'brzycki';
+}
+
+export interface ActiveProgram {
+  programId: string;
+  /** Index into the flattened list of days across weeks. */
+  nextIndex: number;
+}
+
+export interface AppState {
+  version: 1;
+  profile: Profile;
+  workouts: Workout[];
+  activeWorkout?: Workout;
+  programs: Program[]; // user-created programs (built-ins are in code)
+  customExercises: Exercise[];
+  bodyweight: BodyweightEntry[];
+  activeProgram?: ActiveProgram;
+  /** Manually entered maxes (e.g. from a meet) by exercise id, kg. */
+  manualMaxes: Record<string, number>;
+}

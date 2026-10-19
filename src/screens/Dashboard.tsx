@@ -1,0 +1,206 @@
+import { useMemo, useState } from 'react';
+import { dots, fmtKg } from '../lib/calc';
+import { bodyweightAt, getExercise, useAppState } from '../lib/store';
+import { bestE1rm, exerciseHistory, finishedWorkouts, trainingStreakWeeks, weeklyStats, workoutPRs } from '../lib/stats';
+import { fmtDate, weekKey } from '../lib/util';
+import { BarChart, LineChart, Sparkline } from '../components/Charts';
+import { go, Icon, Segmented, Stat } from '../components/ui';
+import { nextProgramDay } from '../lib/workout';
+import { StrengthMini } from './Strength';
+import { movingAverage } from './Body';
+
+const MAIN_LIFTS = [
+  { id: 'squat', label: 'Squat' },
+  { id: 'bench-press', label: 'Bench' },
+  { id: 'deadlift', label: 'Deadlift' },
+  { id: 'press', label: 'Press' },
+];
+
+export function Dashboard() {
+  const s = useAppState();
+  const [lift, setLift] = useState('squat');
+  const [volMetric, setVolMetric] = useState<'tonnage' | 'hardSets'>('tonnage');
+  const workouts = finishedWorkouts(s);
+  const bw = bodyweightAt(s);
+  const next = nextProgramDay(s);
+
+  const lifts = useMemo(
+    () =>
+      MAIN_LIFTS.map((l) => {
+        const hist = exerciseHistory(s, l.id);
+        const best = bestE1rm(s, l.id);
+        const old = hist.filter((p) => new Date(p.date).getTime() < Date.now() - 90 * 86400000);
+        const oldBest = old.length ? Math.max(...old.map((p) => p.e1rm)) : undefined;
+        return { ...l, hist, best, delta: oldBest ? best - oldBest : undefined };
+      }),
+    [s],
+  );
+  const total = lifts.slice(0, 3).every((l) => l.best) ? lifts.slice(0, 3).reduce((a, l) => a + l.best, 0) : 0;
+
+  const weeks = useMemo(() => weeklyStats(s, 12), [s]);
+  const thisWeek = weeks[weeks.length - 1];
+  const streak = trainingStreakWeeks(s);
+
+  const recentPRs = useMemo(() => {
+    const out: { date: string; text: string; id: string }[] = [];
+    for (const w of workouts.slice(-12).reverse()) {
+      for (const p of workoutPRs(s, w)) {
+        if (p.type !== 'e1rm') continue;
+        const ex = getExercise(p.exerciseId, s);
+        const adj = ex?.bodyweightLoaded ? w.bodyweight ?? bw ?? 0 : 0;
+        out.push({ id: w.id + p.exerciseId, date: w.startedAt, text: `${ex?.name}: e1RM ${fmtKg(p.value - adj)} kg (+${fmtKg(p.value - (p.previous ?? 0))})` });
+      }
+    }
+    return out.slice(0, 6);
+  }, [s]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sel = lifts.find((l) => l.id === lift)!;
+  const bwSorted = [...s.bodyweight].sort((a, b) => a.date.localeCompare(b.date));
+  const bwTrend = movingAverage(bwSorted.slice(-30)).map((p) => p.y);
+
+  return (
+    <div>
+      <div className="topbar">
+        <h1>{s.profile.name ? `Hi, ${s.profile.name}` : 'Dashboard'}</h1>
+        <button className="btn-ghost icon-btn" aria-label="Share best lifts" onClick={() => go('/share')}>
+          <Icon name="share" />
+        </button>
+        <button className="btn-ghost icon-btn" aria-label="Settings" onClick={() => go('/settings')}>
+          <Icon name="settings" />
+        </button>
+      </div>
+
+      {s.activeWorkout ? (
+        <button className="btn-primary btn-block" onClick={() => go('/workout')}>
+          Resume: {s.activeWorkout.name}
+        </button>
+      ) : (
+        <button className="btn-primary btn-block" onClick={() => go('/train')}>
+          {next ? `Start ${next.day.name} · ${next.program.name}` : 'Start a workout'}
+        </button>
+      )}
+
+      {!workouts.length && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h3>Welcome 👋</h3>
+          <p className="small">Quick setup to get the most out of the app:</p>
+          <ol className="small" style={{ paddingLeft: 18, margin: '6px 0' }}>
+            <li>
+              <a href="#/settings">Set your profile</a> (sex, birth year, bar & plates).
+            </li>
+            <li>
+              <a href="#/body">Log your bodyweight</a> — needed for strength standards & Wilks/DOTS.
+            </li>
+            <li>
+              <a href="#/strength">Enter known maxes</a> so RPE/% loads are suggested from day one.
+            </li>
+            <li>
+              <a href="#/programs">Pick a program</a> (Starting Strength, 5/3/1, RPE blocks…) or log freely.
+            </li>
+          </ol>
+        </div>
+      )}
+
+      <div className="grid2" style={{ marginTop: 12 }}>
+        <Stat label="SBD total (e1RM)" value={total ? `${fmtKg(total, 0)} kg` : '–'} sub={total && bw ? `DOTS ${dots(total, bw, s.profile.sex).toFixed(1)}` : 'log S, B & D'} />
+        <div className="stat" onClick={() => go('/body')} style={{ cursor: 'pointer' }}>
+          <div className="label">Bodyweight</div>
+          <div className="row between">
+            <div className="value">{bw ? fmtKg(bw) : '–'}</div>
+            <Sparkline values={bwTrend} />
+          </div>
+          <div className="sub">{bw ? 'kg · tap to log' : 'tap to log'}</div>
+        </div>
+        <Stat label="This week" value={`${thisWeek?.sessions ?? 0} sessions`} sub={`${thisWeek?.hardSets ?? 0} hard sets · ${Math.round((thisWeek?.tonnage ?? 0) / 100) / 10} t`} />
+        <Stat label="Streak" value={`${streak} wk`} sub={`${workouts.length} workouts total`} />
+      </div>
+
+      <h2>Main lifts</h2>
+      <div className="grid2">
+        {lifts.map((l) => (
+          <button key={l.id} className="stat" style={{ textAlign: 'left', display: 'block', minHeight: 0 }} onClick={() => setLift(l.id)} aria-pressed={lift === l.id}>
+            <div className="row between">
+              <span className="label">{l.label}</span>
+              <Sparkline values={l.hist.slice(-12).map((p) => p.e1rm)} width={60} height={20} />
+            </div>
+            <div className="value" style={{ color: lift === l.id ? 'var(--accent)' : undefined }}>
+              {l.best ? fmtKg(l.best) : '–'}
+            </div>
+            <div className="sub">{l.delta !== undefined ? <span className={l.delta >= 0 ? 'good' : 'bad'}>{l.delta >= 0 ? '+' : ''}{fmtKg(l.delta)} kg vs 3 mo ago</span> : 'e1RM kg'}</div>
+          </button>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="row between">
+          <h3 style={{ margin: 0 }}>{sel.label} e1RM</h3>
+          <button className="btn-sm btn-ghost" onClick={() => go(`/exercise/${sel.id}`)}>
+            Details ›
+          </button>
+        </div>
+        <LineChart
+          points={sel.hist.map((p) => ({ x: new Date(p.date).getTime(), y: p.e1rm, label: `${fmtKg(p.topWeight)}×${p.topReps}${p.topRpe ? ` @${p.topRpe}` : ''}` }))}
+        />
+      </div>
+
+      <div className="card">
+        <div className="row between" style={{ marginBottom: 6 }}>
+          <h3 style={{ margin: 0 }}>Weekly training</h3>
+          <div style={{ width: 170 }}>
+            <Segmented value={volMetric} onChange={setVolMetric} options={[{ value: 'tonnage', label: 'Tonnage' }, { value: 'hardSets', label: 'Hard sets' }]} />
+          </div>
+        </div>
+        <BarChart
+          unit={volMetric === 'tonnage' ? 'kg' : 'sets'}
+          bars={weeks.map((w) => ({
+            key: w.week,
+            label: fmtDate(w.week, { day: 'numeric', month: 'short' }),
+            value: w[volMetric],
+            tip: `week of ${fmtDate(w.week, { day: 'numeric', month: 'short' })} · ${w.sessions} sessions`,
+          }))}
+        />
+        <div className="tiny muted">Hard sets = work sets at RPE ≥ 7 (or without RPE). Last 12 weeks.</div>
+      </div>
+
+      <div className="card" onClick={() => go('/strength')} style={{ cursor: 'pointer' }}>
+        <div className="row between">
+          <h3 style={{ margin: 0 }}>Strength profile</h3>
+          <span className="small muted">Details ›</span>
+        </div>
+        <StrengthMini />
+      </div>
+
+      {recentPRs.length > 0 && (
+        <div className="card">
+          <h3>🏆 Recent PRs</h3>
+          {recentPRs.map((p) => (
+            <div key={p.id} className="row between small" style={{ padding: '4px 0' }}>
+              <span className="grow">{p.text}</span>
+              <span className="muted">{fmtDate(p.date, { day: 'numeric', month: 'short' })}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {workouts.length > 0 && (
+        <div className="card">
+          <div className="row between">
+            <h3 style={{ margin: 0 }}>Recent sessions</h3>
+            <button className="btn-sm btn-ghost" onClick={() => go('/history')}>
+              All ›
+            </button>
+          </div>
+          {workouts
+            .slice(-4)
+            .reverse()
+            .map((w) => (
+              <button key={w.id} className="list-item" onClick={() => go(`/history/${w.id}`)}>
+                <span className="grow ellipsis">{w.name}</span>
+                <span className="small muted">{weekKey(w.startedAt) === weekKey(new Date().toISOString()) ? fmtDate(w.startedAt, { weekday: 'short' }) : fmtDate(w.startedAt, { day: 'numeric', month: 'short' })}</span>
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
