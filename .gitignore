@@ -3,3 +3,5 @@ dist
 *.program.json
 .env.local
 .env.*.local
+# Paid/copyrighted program source material (spreadsheets, PDFs) — keep local only.
+/docs/

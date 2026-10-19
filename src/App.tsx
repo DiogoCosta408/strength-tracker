@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useAppState, useLoaded } from './lib/store';
 import { DialogHost, go, Icon, Toaster, useRoute } from './components/ui';
 import { RestTimer } from './components/RestTimer';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Dashboard } from './screens/Dashboard';
 import { Train } from './screens/Train';
 import { WorkoutLogger } from './screens/WorkoutLogger';
@@ -74,7 +75,9 @@ export function App() {
   return (
     <>
       <div className="app">
-        <Screen route={route} />
+        <ErrorBoundary key={key}>
+          <Screen route={route} />
+        </ErrorBoundary>
       </div>
       <RestTimer />
       <nav className="tabbar" aria-label="Main">

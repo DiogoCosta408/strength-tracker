@@ -212,6 +212,6 @@ program = dict(
     description='13-week strength block for powerlifting: 4 lifting days a week with RPE ramps, load drops and GPP, finishing with a taper and meet/max test. Imported from your template.',
     weeks=weeks,
 )
-json.dump(dict(format='strength-tracker-program', version=1, program=program, customExercises=CUSTOM), open(OUT, 'w'), indent=1, ensure_ascii=False)
+json.dump(dict(format='strength-tracker-program', version=1, program=program, customExercises=CUSTOM), open(OUT, 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
 n_days = sum(len(w['days']) for w in weeks); n_ex = sum(len(d['exercises']) for w in weeks for d in w['days'])
 print(f'{len(weeks)} weeks, {n_days} days, {n_ex} exercise slots')
