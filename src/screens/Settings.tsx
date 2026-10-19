@@ -147,7 +147,6 @@ export function Settings() {
             }}
           />
         </label>
-        <p className="tiny muted">Sets with an RPE use the RPE chart for e1RM; sets without use the formula above.</p>
       </div>
 
       <h2>Appearance</h2>
@@ -171,7 +170,7 @@ export function Settings() {
 
       <h2>Your data</h2>
       <div className="card">
-        <p className="small muted">Everything is stored on this device only. Export a backup regularly — and before clearing browser data or switching phones.</p>
+        <p className="small muted">Stored on this device only. Export a backup regularly.</p>
         <div className="grid2" style={{ marginTop: 8 }}>
           <button onClick={doExport}>Export backup</button>
           <button onClick={() => fileRef.current?.click()}>Import backup</button>
@@ -212,7 +211,7 @@ export function Settings() {
           style={{ marginTop: 10 }}
           onClick={async () => {
             if ((await ask('Delete ALL workouts, programs and bodyweight entries? This cannot be undone.', { confirmLabel: 'Delete everything', danger: true })) && (await ask('Really delete everything?', { confirmLabel: 'Yes, delete', danger: true }))) {
-              replaceState({ ...getState(), workouts: [], programs: [], bodyweight: [], customExercises: [], manualMaxes: {}, diagnoses: {}, coachChat: [], activeWorkout: undefined, activeProgram: undefined });
+              replaceState({ ...getState(), workouts: [], programs: [], bodyweight: [], customExercises: [], manualMaxes: {}, diagnoses: {}, coachChat: [], nutrition: [], goals: undefined, activeWorkout: undefined, activeProgram: undefined });
               toast('All data deleted');
             }
           }}

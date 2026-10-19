@@ -108,8 +108,12 @@ export function lastPerformance(s: AppState, exerciseId: string, excludeWorkoutI
   return undefined;
 }
 
-/** Suggested load (logged weight, kg) for a prescription. `topSet` is the session's top set load, if any. */
-export function suggestLoad(s: AppState, exerciseId: string, p: SetPrescription, topSet?: number): number | undefined {
+/**
+ * Suggested load (logged weight, kg) for a prescription. `topSet` is the session's top-set
+ * load; `todayE1` is today's e1RM (total load) from sets already logged with an RPE, which
+ * takes precedence over history for RPE-based sets.
+ */
+export function suggestLoad(s: AppState, exerciseId: string, p: SetPrescription, topSet?: number, todayE1?: number): number | undefined {
   const ex = getExercise(exerciseId, s);
   const bw = ex?.bodyweightLoaded ? bodyweightAt(s) ?? 0 : 0;
   const step = s.profile.rounding;
@@ -126,7 +130,8 @@ export function suggestLoad(s: AppState, exerciseId: string, p: SetPrescription,
     const success = target.every((x) => x.done && x.reps >= (x.target?.reps ?? x.reps));
     return success ? heaviest + p.lpIncrement : heaviest;
   }
-  // Autoregulated loads use recent performance (6 weeks), falling back to all-time.
+  // RPE sets follow today's performance once there is one; otherwise recent (6 weeks), then all-time.
+  if (p.rpe !== undefined && todayE1) return finish(loadForRpe(todayE1, p.reps, p.rpe));
   const e1 = bestE1rm(s, exerciseId, 42) || bestE1rm(s, exerciseId);
   if (!e1) return undefined;
   if (p.percent !== undefined) return finish((e1 * p.percent) / 100);

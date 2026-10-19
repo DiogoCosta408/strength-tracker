@@ -26,6 +26,7 @@ export const DEFAULT_STATE: AppState = {
   manualMaxes: {},
   diagnoses: {},
   coachChat: [],
+  nutrition: [],
 };
 
 let state: AppState = DEFAULT_STATE;

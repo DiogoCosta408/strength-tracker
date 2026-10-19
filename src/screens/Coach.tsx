@@ -8,9 +8,10 @@ import { fmtKg } from '../lib/calc';
 import { exerciseName, getProgram, getState, update, useAppState } from '../lib/store';
 import { duplicateProgram } from '../lib/workout';
 import { uid } from '../lib/util';
-import { ask, go, Segmented, Sheet, TopBar, toast, useRoute } from '../components/ui';
+import { ask, go, Help, Segmented, Sheet, TopBar, toast, useRoute } from '../components/ui';
+import { GoalsPanel } from './Goals';
 
-type Tab = 'insights' | 'diagnose' | 'chat';
+type Tab = 'goals' | 'insights' | 'diagnose' | 'chat';
 const FAMILIES: LiftFamily[] = ['squat', 'bench', 'deadlift', 'press'];
 const RECOVERY_KEY = '_recovery';
 
@@ -35,11 +36,13 @@ export function Coach() {
         value={tab}
         onChange={setTab}
         options={[
+          { value: 'goals', label: 'Goals' },
           { value: 'insights', label: 'Insights' },
           { value: 'diagnose', label: 'Diagnose' },
-          { value: 'chat', label: 'Ask coach' },
+          { value: 'chat', label: 'Ask' },
         ]}
       />
+      {tab === 'goals' && <GoalsPanel onAsk={openChat} />}
       {tab === 'insights' && (
         <Insights
           onDiagnose={(f) => {
@@ -61,20 +64,19 @@ function Insights({ onDiagnose, onAsk }: { onDiagnose: (f: LiftFamily) => void; 
   const s = useAppState();
   const lifts = useMemo(() => analyzeAll(s), [s]);
   const insights = useMemo(() => buildInsights(s), [s]);
+  const [open, setOpen] = useState<string | null>(null);
   return (
     <div>
       <div className="card" style={{ marginTop: 12 }}>
-        <h3>Main lifts</h3>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Lift</th>
-              <th>Status</th>
-              <th>e1RM</th>
-              <th>Since PR</th>
-              <th>/wk</th>
-            </tr>
-          </thead>
+        <div className="title-row">
+          <h3>Main lifts</h3>
+          <Help title="How lifts are rated">
+            <p>Progressing: e1RM is trending up or you set a PR in the last 4 weeks.</p>
+            <p>Stalled: no e1RM PR for 4+ weeks and a flat trend. Regressing: trending down and below your best.</p>
+            <p>"/wk" counts sessions with any variation of the lift. Tap a stalled lift to diagnose it.</p>
+          </Help>
+        </div>
+        <table className="tbl" style={{ marginTop: 6 }}>
           <tbody>
             {lifts.map((l) => (
               <tr key={l.family} onClick={() => l.trend !== 'progressing' && l.trend !== 'insufficient' && onDiagnose(l.family)} style={{ cursor: 'pointer' }}>
@@ -83,46 +85,53 @@ function Insights({ onDiagnose, onAsk }: { onDiagnose: (f: LiftFamily) => void; 
                   <span className={`status ${TREND_CLASS[l.trend]}`}>{TREND_LABEL[l.trend]}</span>
                 </td>
                 <td>{l.bestE1rm ? fmtKg(l.bestE1rm) : '–'}</td>
-                <td>{Number.isFinite(l.weeksSincePR) && l.history.length ? `${Math.round(l.weeksSincePR)} wk` : '–'}</td>
-                <td>{l.history.length ? fmtKg(l.frequency) : '–'}</td>
+                <td className="muted">{Number.isFinite(l.weeksSincePR) && l.history.length ? `PR ${Math.round(l.weeksSincePR)}w ago` : ''}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="tiny muted">Stalled = no e1RM PR in 4+ weeks and a flat trend. "/wk" counts sessions with any variation of the lift.</p>
       </div>
 
-      {insights.map((i) => (
-        <InsightCard key={i.id} insight={i} onDiagnose={onDiagnose} onAsk={onAsk} />
-      ))}
+      <div className="card tight">
+        {insights.map((i) => (
+          <InsightRow key={i.id} insight={i} open={open === i.id} onToggle={() => setOpen(open === i.id ? null : i.id)} onDiagnose={onDiagnose} onAsk={onAsk} />
+        ))}
+      </div>
     </div>
   );
 }
 
-function InsightCard({ insight: i, onDiagnose, onAsk }: { insight: Insight; onDiagnose: (f: LiftFamily) => void; onAsk: (t: string) => void }) {
-  const label = { alert: 'Action needed', warn: 'Attention', info: 'Note', good: 'Going well' }[i.severity];
+function InsightRow({ insight: i, open, onToggle, onDiagnose, onAsk }: { insight: Insight; open: boolean; onToggle: () => void; onDiagnose: (f: LiftFamily) => void; onAsk: (t: string) => void }) {
   return (
-    <div className={`card insight ${i.severity}`}>
-      <div className="row between">
-        <h3 style={{ margin: 0 }}>{i.title}</h3>
-        <span className={`status ${i.severity === 'alert' ? 'bad' : i.severity === 'warn' ? 'warn' : i.severity === 'good' ? 'good' : 'muted'}`}>{label}</span>
-      </div>
-      <p className="small" style={{ color: 'var(--text-2)', marginTop: 6 }}>
-        {i.detail}
-      </p>
-      <ul className="small" style={{ paddingLeft: 18, margin: '6px 0' }}>
-        {i.actions.map((a, k) => (
-          <li key={k}>{a}</li>
-        ))}
-      </ul>
-      {i.family && i.severity !== 'good' && (
-        <div className="row" style={{ marginTop: 8 }}>
-          <button className="btn-sm grow" onClick={() => onDiagnose(i.family!)}>
-            Diagnose {FAMILY_LABEL[i.family].toLowerCase()}
-          </button>
-          <button className="btn-sm grow" onClick={() => onAsk(`${i.title}. ${i.detail} What should I change? Ask me anything you need to know first.`)}>
-            Ask the coach
-          </button>
+    <div className="insight-row">
+      <button className="list-item" onClick={onToggle} aria-expanded={open}>
+        <span className={`dot ${i.severity}`} />
+        <div className="grow">
+          <div className="bold">{i.title}</div>
+          {!open && <div className="small muted clamp2">{i.actions[0]}</div>}
+        </div>
+        <span className="muted">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 2px 12px 19px' }}>
+          <p className="small" style={{ color: 'var(--text-2)' }}>
+            {i.detail}
+          </p>
+          <ul className="small" style={{ paddingLeft: 18, margin: '6px 0' }}>
+            {i.actions.map((a, k) => (
+              <li key={k}>{a}</li>
+            ))}
+          </ul>
+          {i.family && i.severity !== 'good' && (
+            <div className="row">
+              <button className="btn-sm grow" onClick={() => onDiagnose(i.family!)}>
+                Diagnose
+              </button>
+              <button className="btn-sm grow" onClick={() => onAsk(`${i.title}. ${i.detail} What should I change? Ask me anything you need to know first.`)}>
+                Ask coach
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -162,7 +171,13 @@ function Diagnose({ family, setFamily, onAsk }: { family: LiftFamily; setFamily:
           </button>
         ))}
       </div>
-      <p className="small muted">Answer what you notice on heavy sets (RPE 8+). Filming from the side helps. Answers are saved and shared with the AI coach.</p>
+      <div className="row between" style={{ margin: '4px 0' }}>
+        <span className="small muted">What do you notice on heavy sets?</span>
+        <Help title="Diagnose">
+          <p>Answer based on heavy sets (RPE 8+). Filming from the side helps.</p>
+          <p>Your answers build a plan below: variations to run for 4-6 weeks (usually as the second weekly session for the lift), technique cues and programming changes. They're saved and shared with the AI coach.</p>
+        </Help>
+      </div>
 
       {QUESTIONS[family].map((q) => (
         <QuestionCard key={q.id} q={q} selected={answers[q.id] ?? []} onPick={(o) => setAnswer(exId, q, o)} />
@@ -174,11 +189,10 @@ function Diagnose({ family, setFamily, onAsk }: { family: LiftFamily; setFamily:
 
       {(result.rx.length > 0 || result.cues.length > 0 || result.programming.length > 0) && (
         <>
-          <h2>Coach's plan for your {FAMILY_LABEL[family].toLowerCase()}</h2>
+          <h2>Plan</h2>
           {result.rx.length > 0 && (
             <div className="card">
-              <h3>Variations & accessories</h3>
-              <p className="tiny muted">Pick 1-2 and run them for 4-6 weeks, usually as the second weekly session for this lift.</p>
+              <h3>Pick 1-2 variations</h3>
               {result.rx.map((r) => (
                 <div key={r.exerciseId} className="rx-row">
                   <div className="grow">
@@ -345,6 +359,7 @@ function AddToProgramSheet({ rx, onClose }: { rx: Rx; onClose: () => void }) {
 // AI chat ----------------------------------------------------------------------
 
 const STARTERS = [
+  'Are my goals realistic? What should I change in training and nutrition?',
   'Review my last 6 weeks. What is going well and what is holding me back?',
   'Which of my lifts is the biggest weak point, and why?',
   'Plan my next 4 weeks to break my stall.',
@@ -394,10 +409,13 @@ function Chat({ draft, setDraft }: { draft: string; setDraft: (t: string) => voi
     <div className="chat">
       {!chat.length && streaming === null && (
         <div className="card" style={{ marginTop: 12 }}>
-          <h3>Your AI strength coach</h3>
-          <p className="small" style={{ color: 'var(--text-2)' }}>
-            It reads your last 6 weeks of training, lift trends and diagnostic answers. It will ask follow-up questions, like where a lift fails, before it prescribes changes.
-          </p>
+          <div className="title-row">
+            <h3>Ask your coach</h3>
+            <Help title="AI coach">
+              <p>The coach reads your last 6 weeks of training, lift trends, goals, nutrition and diagnostic answers.</p>
+              <p>It asks follow-up questions (like where a lift fails) before prescribing changes. Uses your Anthropic API key, billed to your account.</p>
+            </Help>
+          </div>
           <div className="options" style={{ marginTop: 8 }}>
             {STARTERS.map((q) => (
               <button key={q} className="option" onClick={() => send(q)}>
@@ -436,8 +454,7 @@ function Chat({ draft, setDraft }: { draft: string; setDraft: (t: string) => voi
           </button>
         )}
       </div>
-      <div className="row between tiny muted" style={{ marginTop: 6 }}>
-        <span>Uses your Anthropic API key (billed to your account).</span>
+      <div className="row tiny muted" style={{ marginTop: 6, justifyContent: 'flex-end' }}>
         <span className="row" style={{ gap: 4 }}>
           <button className="btn-ghost btn-sm" onClick={async () => chat.length && (await ask('Clear the conversation?', { confirmLabel: 'Clear' })) && update((st) => ({ ...st, coachChat: [] }))}>
             Clear
@@ -455,13 +472,13 @@ function KeySetup({ onSaved }: { onSaved: () => void }) {
   const [key, setKey] = useState(getApiKey());
   return (
     <div className="card" style={{ marginTop: 12 }}>
-      <h3>Connect the AI coach</h3>
-      <p className="small" style={{ color: 'var(--text-2)' }}>
-        The chat coach runs on Claude using your own Anthropic API key. Create one at <b>console.anthropic.com</b> → API keys. A typical question costs a few cents.
-      </p>
-      <p className="small" style={{ color: 'var(--text-2)' }}>
-        The key is stored only on this device and is never included in backups. Requests go straight from your phone to the Claude API, along with a summary of your recent training.
-      </p>
+      <div className="title-row">
+        <h3>Connect the AI coach</h3>
+        <Help title="API key">
+          <p>The chat coach runs on Claude with your own Anthropic API key. Create one at console.anthropic.com → API keys. A typical question costs a few cents.</p>
+          <p>The key stays on this device and is never included in backups. Requests go straight from your phone to the Claude API, along with a summary of your recent training.</p>
+        </Help>
+      </div>
       <label className="field">
         <span>Anthropic API key</span>
         <input id="coach-api-key" type="password" autoComplete="off" placeholder="sk-ant-…" value={key} onChange={(e) => setKey(e.target.value)} />
@@ -490,9 +507,6 @@ function KeySetup({ onSaved }: { onSaved: () => void }) {
           Save key
         </button>
       </div>
-      <p className="tiny muted" style={{ marginTop: 8 }}>
-        Insights and Diagnose work offline without a key.
-      </p>
     </div>
   );
 }

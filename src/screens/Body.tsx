@@ -3,7 +3,7 @@ import { fmtKg } from '../lib/calc';
 import { update, useAppState } from '../lib/store';
 import { fmtDate, todayISO, uid } from '../lib/util';
 import { LineChart, type Point } from '../components/Charts';
-import { Icon, NumInput, Segmented, Stat, TopBar } from '../components/ui';
+import { Icon, NumInput, Segmented, Stat, TopBar, toast } from '../components/ui';
 
 type Range = '30' | '90' | '365' | 'all';
 
@@ -24,6 +24,8 @@ export function Body() {
   const [date, setDate] = useState(todayISO());
   const [w, setW] = useState<number | undefined>(() => [...s.bodyweight].sort((a, b) => b.date.localeCompare(a.date))[0]?.weight);
   const [range, setRange] = useState<Range>('90');
+  const [kcal, setKcal] = useState<number | undefined>();
+  const [protein, setProtein] = useState<number | undefined>();
   const sorted = useMemo(() => [...s.bodyweight].sort((a, b) => a.date.localeCompare(b.date)), [s.bodyweight]);
   const since = range === 'all' ? '' : new Date(Date.now() - parseInt(range) * 86400000).toISOString().slice(0, 10);
   const shown = sorted.filter((e) => e.date >= since);
@@ -35,12 +37,17 @@ export function Body() {
   const change30 = weekAgo !== undefined && monthStart ? weekAgo - monthStart.y : undefined;
 
   const save = () => {
-    if (!w) return;
+    if (!w && !kcal) return;
     update((st) => ({
       ...st,
-      bodyweight: [...st.bodyweight.filter((b) => b.date !== date), { id: uid(), date, weight: w }],
+      bodyweight: w ? [...st.bodyweight.filter((b) => b.date !== date), { id: uid(), date, weight: w }] : st.bodyweight,
+      nutrition: kcal ? [...st.nutrition.filter((n) => n.date !== date), { id: uid(), date, kcal, protein }] : st.nutrition,
     }));
+    setKcal(undefined);
+    setProtein(undefined);
+    toast('Saved');
   };
+  const intake = new Map(s.nutrition.map((n) => [n.date, n]));
 
   return (
     <div>
@@ -55,7 +62,17 @@ export function Body() {
             <span>kg</span>
             <NumInput value={w} onChange={setW} />
           </label>
-          <button className="btn-primary" style={{ marginBottom: 8 }} onClick={save} disabled={!w}>
+        </div>
+        <div className="row" style={{ alignItems: 'flex-end' }}>
+          <label className="field grow">
+            <span>Calories eaten (optional)</span>
+            <NumInput value={kcal} placeholder="kcal" onChange={(v) => setKcal(v ? Math.round(v) : undefined)} />
+          </label>
+          <label className="field grow">
+            <span>Protein (g)</span>
+            <NumInput value={protein} placeholder="g" onChange={(v) => setProtein(v ? Math.round(v) : undefined)} />
+          </label>
+          <button className="btn-primary" style={{ marginBottom: 8 }} onClick={save} disabled={!w && !kcal}>
             Save
           </button>
         </div>
@@ -81,6 +98,7 @@ export function Body() {
           {[...sorted].reverse().slice(0, 60).map((e) => (
             <div key={e.id} className="list-item" style={{ minHeight: 40 }}>
               <span className="grow">{fmtDate(e.date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              {intake.get(e.date) && <span className="small muted num">{intake.get(e.date)!.kcal} kcal</span>}
               <span className="bold num">{fmtKg(e.weight)} kg</span>
               <button className="btn-ghost icon-btn" aria-label="Delete entry" onClick={() => update((st) => ({ ...st, bodyweight: st.bodyweight.filter((b) => b.id !== e.id) }))}>
                 <Icon name="trash" size={16} />

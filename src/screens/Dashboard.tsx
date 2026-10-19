@@ -4,11 +4,12 @@ import { bodyweightAt, getExercise, useAppState } from '../lib/store';
 import { bestE1rm, exerciseHistory, finishedWorkouts, trainingStreakWeeks, weeklyStats, workoutPRs } from '../lib/stats';
 import { fmtDate, weekKey } from '../lib/util';
 import { BarChart, LineChart, Sparkline } from '../components/Charts';
-import { go, Icon, Segmented, Stat } from '../components/ui';
+import { go, Help, Icon, Segmented, Stat } from '../components/ui';
 import { nextProgramDay } from '../lib/workout';
 import { StrengthMini } from './Strength';
 import { movingAverage } from './Body';
 import { buildInsights } from '../lib/coach';
+import { goalReport } from '../lib/goals';
 
 const MAIN_LIFTS = [
   { id: 'squat', label: 'Squat' },
@@ -56,6 +57,7 @@ export function Dashboard() {
   }, [s]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sel = lifts.find((l) => l.id === lift)!;
+  const goal = useMemo(() => goalReport(s), [s]);
   const coachNote = useMemo(() => buildInsights(s).find((i) => i.severity !== 'info') ?? null, [s]);
   const bwSorted = [...s.bodyweight].sort((a, b) => a.date.localeCompare(b.date));
   const bwTrend = movingAverage(bwSorted.slice(-30)).map((p) => p.y);
@@ -101,6 +103,38 @@ export function Dashboard() {
             </li>
           </ol>
         </div>
+      )}
+
+      {goal && s.goals && (
+        <button className="card list-item" style={{ display: 'block', borderRadius: 14, border: '1px solid var(--border)', marginTop: 12 }} onClick={() => go('/coach/goals')}>
+          <div className="row between">
+            <span className="small muted">Goal · {Math.max(0, Math.round(goal.weeksLeft))} weeks left</span>
+            <span className={`status ${goal.overall === 'unrealistic' ? 'bad' : goal.overall === 'ambitious' ? 'warn' : goal.overall === 'no-data' ? 'muted' : 'good'}`}>
+              {{ achieved: 'Achieved', 'on-track': 'On track', ambitious: 'Ambitious', unrealistic: 'Not realistic', 'no-data': 'Needs data' }[goal.overall]}
+            </span>
+          </div>
+          {goal.lifts.map((l) => (
+            <div key={l.exerciseId} className="row between small num" style={{ marginTop: 4 }}>
+              <span className="grow">{l.name.replace(/\s*\(.*\)/, '')}</span>
+              <span>
+                {fmtKg(l.current)} / <b>{fmtKg(l.target)}</b>
+              </span>
+            </div>
+          ))}
+          {goal.bodyweight && (
+            <div className="row between small num" style={{ marginTop: 4 }}>
+              <span className="grow">Bodyweight</span>
+              <span>
+                {fmtKg(goal.bodyweight.current)} / <b>{fmtKg(goal.bodyweight.target)}</b>
+              </span>
+            </div>
+          )}
+          {goal.macros && (
+            <div className="small muted" style={{ marginTop: 6 }}>
+              Today: {goal.macros.calories.toLocaleString()} kcal · P {goal.macros.protein} g · C {goal.macros.carbs} g · F {goal.macros.fat} g
+            </div>
+          )}
+        </button>
       )}
 
       {coachNote && workouts.length > 0 && (
@@ -160,7 +194,12 @@ export function Dashboard() {
 
       <div className="card">
         <div className="row between" style={{ marginBottom: 6 }}>
-          <h3 style={{ margin: 0 }}>Weekly training</h3>
+          <div className="title-row">
+            <h3>Weekly training</h3>
+            <Help title="Weekly training">
+              <p>Tonnage = kg × reps of all work sets. Hard sets = work sets at RPE 7+ (or without an RPE). Last 12 weeks.</p>
+            </Help>
+          </div>
           <div style={{ width: 170 }}>
             <Segmented value={volMetric} onChange={setVolMetric} options={[{ value: 'tonnage', label: 'Tonnage' }, { value: 'hardSets', label: 'Hard sets' }]} />
           </div>
@@ -174,7 +213,6 @@ export function Dashboard() {
             tip: `week of ${fmtDate(w.week, { day: 'numeric', month: 'short' })} · ${w.sessions} sessions`,
           }))}
         />
-        <div className="tiny muted">Hard sets = work sets at RPE ≥ 7 (or without RPE). Last 12 weeks.</div>
       </div>
 
       <div className="card" onClick={() => go('/strength')} style={{ cursor: 'pointer' }}>

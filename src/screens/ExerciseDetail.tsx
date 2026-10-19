@@ -6,7 +6,7 @@ import { bestE1rm, exerciseHistory, repMaxes } from '../lib/stats';
 import { fmtDate } from '../lib/util';
 import { LineChart } from '../components/Charts';
 import { ExerciseList } from '../components/ExercisePicker';
-import { go, NumInput, Segmented, Stat, TopBar } from '../components/ui';
+import { go, Help, NumInput, Segmented, Stat, TopBar } from '../components/ui';
 
 type Metric = 'e1rm' | 'top' | 'volume';
 
@@ -61,8 +61,12 @@ export function ExerciseDetail({ id }: { id: string }) {
       </div>
 
       <div className="card">
-        <h3>Known max</h3>
-        <p className="small muted">Tested 1RM (e.g. from a meet). Used for % prescriptions and standards if higher than your logged e1RM.</p>
+        <div className="title-row" style={{ marginBottom: 6 }}>
+          <h3>Known max</h3>
+          <Help title="Known max">
+            <p>A tested 1RM, e.g. from a meet. It's used for % prescriptions and strength standards when it's higher than your logged e1RM.</p>
+          </Help>
+        </div>
         <div style={{ width: 140 }}>
           <NumInput
             value={s.manualMaxes[id]}

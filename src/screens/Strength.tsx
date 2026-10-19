@@ -6,7 +6,7 @@ import { bodyweightAt, exerciseName, getExercise, update, useAppState } from '..
 import { standings } from '../lib/stats';
 import { LEVELS, levelFor, LIFT_LABELS, LIFT_MUSCLES, loadForLevel, muscleScores, scoreColor } from '../lib/strength';
 import { BodyMap } from '../components/BodyMap';
-import { go, NumInput, Sheet, TopBar } from '../components/ui';
+import { go, Help, NumInput, Sheet, TopBar } from '../components/ui';
 
 const STANDARD_IDS: Record<StandardLift, string> = {
   squat: 'squat',
@@ -79,11 +79,20 @@ export function Strength() {
 
   return (
     <div>
-      <TopBar title="Strength profile" backTo="/" />
-      <p className="small muted">
-        Based on your best e1RM per lift over the last year, relative to {bw} kg bodyweight ({s.profile.sex}
-        {age ? `, ${age}y` : ''}). Tap a muscle.
-      </p>
+      <TopBar
+        title="Strength profile"
+        backTo="/"
+        right={
+          <Help title="Strength profile">
+            <p>
+              Each lift is scored from your best e1RM over the last year relative to {bw} kg bodyweight ({s.profile.sex}
+              {age ? `, ${age}y` : ''}). Muscles are coloured by the lifts that train them. Tap a muscle to see which lifts count.
+            </p>
+            <p>20 pts = Novice, 40 = Intermediate, 60 = Advanced, 80 = Elite, 100 = World class. Standards are approximations from public strength-standard data, scaled by sex and age.</p>
+            <p>Imbalances list lifts more than 10 pts below your average. Tap a lift to enter a tested max.</p>
+          </Help>
+        }
+      />
       <div className="card">
         <BodyMap colorFor={(m) => scoreColor(muscles[m])} selected={sel} onSelect={(m) => setSel(sel === m ? null : m)} labelFor={(m) => `${MUSCLE_LABELS[m]}: ${muscles[m] === null ? 'no data' : `${levelFor(muscles[m]!)} (${Math.round(muscles[m]!)})`}`} />
         <div className="legend-ramp" style={{ marginTop: 8 }} />
@@ -123,7 +132,6 @@ export function Strength() {
       {weak.length > 0 && (
         <div className="card">
           <h3>⚖️ Imbalances</h3>
-          <p className="small muted">Lifts more than 10 pts below your average ({Math.round(avg)}):</p>
           {weak.map((x) => (
             <div key={x.lift} className="small" style={{ padding: '3px 0' }}>
               <b>{LIFT_LABELS[x.lift]}</b> is {Math.round(avg - x.score)} pts behind — reaching your average would be ≈{' '}
@@ -163,7 +171,6 @@ export function Strength() {
       {missing.length > 0 && (
         <>
           <h2>Not scored yet</h2>
-          <p className="small muted">Log these (or enter a known max) to fill in the map.</p>
           <div className="row wrap" style={{ gap: 6 }}>
             {missing.map((l) => (
               <button key={l} className="chip" onClick={() => setEditMax(l)}>
@@ -173,9 +180,6 @@ export function Strength() {
           </div>
         </>
       )}
-      <p className="tiny muted" style={{ marginTop: 16 }}>
-        Standards are approximations compiled from public strength-standard data, scaled by sex and age. 20 pts = Novice, 40 = Intermediate, 60 = Advanced, 80 = Elite, 100 = World class.
-      </p>
 
       {editMax && <ManualMaxSheet lift={editMax} onClose={() => setEditMax(null)} />}
     </div>

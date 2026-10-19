@@ -62,7 +62,7 @@ export function Train() {
       ) : (
         <div className="card">
           <h3>No active program</h3>
-          <p className="small muted">Pick a template (Starting Strength, 5/3/1, RPE blocks…) or build your own. The app will queue the next session for you.</p>
+          <p className="small muted">Follow a template and the app queues each session.</p>
           <button className="btn-block" style={{ marginTop: 8 }} onClick={() => go('/programs')}>
             Browse programs
           </button>

@@ -3,7 +3,7 @@ import type { Sex } from '../types';
 import { dots, e1rm, fmtKg, FORMULAS, ipfGl, loadForRpe, platesFor, roundTo, rpePercent, RPE_VALUES, wilks, wilks2 } from '../lib/calc';
 import { bodyweightAt, getState, useAppState } from '../lib/store';
 import { bestE1rm } from '../lib/stats';
-import { NumInput, Segmented, TopBar } from '../components/ui';
+import { Help, NumInput, Segmented, TopBar } from '../components/ui';
 import { useRoute } from '../components/ui';
 
 type Tab = '1rm' | 'rpe' | 'points' | 'plates' | 'attempts';
@@ -86,7 +86,6 @@ function OneRmCalc() {
               </tr>
             </tbody>
           </table>
-          <p className="tiny muted">Formulas are most accurate under ~10 reps. With RPE, reps in reserve are accounted for.</p>
         </div>
       ) : null}
       {est > 0 && (
@@ -190,8 +189,12 @@ function RpeCalc() {
       </div>
 
       <div className="card">
-        <h3>Back-off from today's top set</h3>
-        <p className="small muted">Uses today's performance (not your all-time max) to set back-off loads — the core of RPE autoregulation.</p>
+        <div className="title-row">
+          <h3>Back-off from today's top set</h3>
+          <Help title="Back-off loads">
+            <p>Uses today's top set (not your all-time max) to set back-off loads, which is the core of RPE autoregulation.</p>
+          </Help>
+        </div>
         <div className="grid3">
           <label className="field">
             <span>Top set kg</span>
@@ -224,7 +227,12 @@ function RpeCalc() {
       </div>
 
       <div className="card" style={{ overflowX: 'auto' }}>
-        <h3>RPE chart (% of 1RM)</h3>
+        <div className="title-row">
+          <h3>RPE chart (% of 1RM)</h3>
+          <Help title="RPE scale">
+            <p>RPE 10 = max effort, 9 = 1 rep left, 8 = 2 reps left, 7 = 3 reps left. Half points = maybe one more.</p>
+          </Help>
+        </div>
         <table className="tbl rpe-chart">
           <thead>
             <tr>
@@ -247,7 +255,6 @@ function RpeCalc() {
             ))}
           </tbody>
         </table>
-        <p className="tiny muted">RPE 10 = max effort, 9 = 1 rep left, 8 = 2 reps left, 7 = 3 reps left. Half points = maybe one more.</p>
       </div>
     </div>
   );
@@ -399,7 +406,6 @@ function PlateCalc() {
           </button>
         ))}
       </div>
-      <p className="tiny muted center">Edit available plates in Settings.</p>
     </div>
   );
 }
@@ -415,7 +421,13 @@ function AttemptCalc() {
   return (
     <div>
       <div className="card">
-        <p className="small muted">Enter projected meet-day maxes (prefilled from your best e1RMs). Openers should be a weight you can triple on a bad day.</p>
+        <div className="row between" style={{ marginBottom: 8 }}>
+          <span className="small muted">Projected meet-day maxes</span>
+          <Help title="Attempt selection">
+            <p>Maxes are prefilled from your best e1RMs. Openers should be a weight you could triple on a bad day.</p>
+            <p>Attempts are a % of max ({pcts.map((p) => Math.round(p * 100) + '%').join(' / ')}), rounded to 2.5 kg.</p>
+          </Help>
+        </div>
         <Segmented value={style} onChange={setStyle} options={[{ value: 'conservative', label: 'Conservative' }, { value: 'standard', label: 'Standard' }, { value: 'aggressive', label: 'Aggressive' }]} />
         <table className="tbl" style={{ marginTop: 10 }}>
           <thead>
@@ -448,7 +460,6 @@ function AttemptCalc() {
             </tr>
           </tbody>
         </table>
-        <p className="tiny muted">Attempts use {pcts.map((p) => Math.round(p * 100) + '%').join(' / ')} of max, rounded to 2.5 kg.</p>
       </div>
     </div>
   );

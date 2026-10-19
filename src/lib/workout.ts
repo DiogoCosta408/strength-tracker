@@ -1,8 +1,8 @@
 import type { AppState, ExercisePrescription, LoggedExercise, LoggedSet, Program, ProgramDay, Workout } from '../types';
 import { flattenDays } from '../data/programs';
-import { roundTo, warmupRamp } from './calc';
+import { e1rm, roundTo, rpePercent, warmupRamp } from './calc';
 import { bodyweightAt, getExercise, getProgram, update } from './store';
-import { suggestLoad } from './stats';
+import { setE1rm, suggestLoad } from './stats';
 import { clone, uid } from './util';
 
 export function newSet(partial: Partial<LoggedSet> = {}): LoggedSet {
@@ -12,7 +12,7 @@ export function newSet(partial: Partial<LoggedSet> = {}): LoggedSet {
 export function exerciseFromPrescription(s: AppState, p: ExercisePrescription): LoggedExercise {
   const sets = p.sets.map((sp) => {
     const w = sp.percentOfTop !== undefined ? undefined : suggestLoad(s, p.exerciseId, sp);
-    return newSet({ kind: sp.kind, reps: sp.reps, rpe: undefined, weight: w ?? 0, target: { ...sp } });
+    return newSet({ kind: sp.kind, reps: sp.reps, rpe: undefined, weight: w ?? 0, autoWeight: true, target: { ...sp } });
   });
   return { id: uid(), exerciseId: p.exerciseId, sets, notes: p.notes, rest: p.rest };
 }
@@ -74,15 +74,48 @@ export function addWarmups(s: AppState, le: LoggedExercise): LoggedExercise {
   return { ...le, sets: [...warmups, ...le.sets.filter((x) => x.kind !== 'warmup')] };
 }
 
-/** Once a top set is done, fill back-off sets that use % of top. */
-export function applyBackoffs(s: AppState, le: LoggedExercise): LoggedExercise {
+/** Today's e1RM (total load) for an exercise entry, from completed work sets that have an RPE. */
+export function todayE1rm(s: AppState, le: LoggedExercise): number | undefined {
+  const ex = getExercise(le.exerciseId, s);
+  const bw = bodyweightAt(s);
+  const vals = le.sets.filter((x) => x.done && x.kind !== 'warmup' && x.rpe !== undefined && x.reps > 0).map((x) => setE1rm(s, ex, x, bw));
+  return vals.length ? Math.max(...vals) : undefined;
+}
+
+/**
+ * Load that back-off sets are calculated from. If the top set overshot its target RPE,
+ * use the weight that would have matched the target instead of the overshoot.
+ */
+export function topSetBase(s: AppState, le: LoggedExercise): number | undefined {
   const top = [...le.sets].reverse().find((x) => x.kind === 'top' && x.done && x.weight > 0);
-  if (!top) return le;
+  if (!top) return undefined;
+  const target = top.target?.rpe;
+  if (target !== undefined && top.rpe !== undefined && top.rpe > target && !getExercise(le.exerciseId, s)?.bodyweightLoaded) {
+    const e1 = e1rm(top.weight, top.reps, top.rpe);
+    return Math.min(top.weight, roundTo(e1 * rpePercent(top.reps, target), s.profile.rounding));
+  }
+  return top.weight;
+}
+
+/**
+ * After a set is logged, re-suggest the remaining app-filled sets: RPE sets follow today's
+ * e1RM (so a set that felt harder than planned means a smaller jump next), and back-offs
+ * follow the top set. Weights the lifter typed are never touched.
+ */
+export function reflowSuggestions(s: AppState, le: LoggedExercise): LoggedExercise {
+  const today = todayE1rm(s, le);
+  const base = topSetBase(s, le);
   return {
     ...le,
-    sets: le.sets.map((x) =>
-      !x.done && x.target?.percentOfTop !== undefined ? { ...x, weight: roundTo((top.weight * x.target.percentOfTop) / 100, s.profile.rounding) } : x,
-    ),
+    sets: le.sets.map((x) => {
+      if (x.done || !x.autoWeight || !x.target) return x;
+      if (x.target.percentOfTop !== undefined) return base ? { ...x, weight: roundTo((base * x.target.percentOfTop) / 100, s.profile.rounding) } : x;
+      if (x.target.rpe !== undefined && today) {
+        const w = suggestLoad(s, le.exerciseId, x.target, undefined, today);
+        return w !== undefined ? { ...x, weight: w } : x;
+      }
+      return x;
+    }),
   };
 }
 

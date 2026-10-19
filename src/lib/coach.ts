@@ -3,6 +3,7 @@ import { FAMILY_MAIN, type LiftFamily, type Rx } from '../data/coachKnowledge';
 import { bodyweightAt, getExercise, getProgram } from './store';
 import { exerciseHistory, finishedWorkouts, isWorkSet, standings, type SessionPoint } from './stats';
 import { LIFT_LABELS } from './strength';
+import { goalReport, goalSummary } from './goals';
 
 const DAY = 86400000;
 const WEEK = 7 * DAY;
@@ -268,6 +269,22 @@ export function buildInsights(s: AppState, now = Date.now()): Insight[] {
         out.push({ id: `imb-${x.lift}`, severity: 'info', title: `${LIFT_LABELS[x.lift]} lags behind your other lifts`, detail: `${Math.round(avg - x.score)} points below your average strength level.`, actions: [`Give ${LIFT_LABELS[x.lift].toLowerCase()} priority: train it first in the session and 2×/week for a block.`] });
   }
 
+  // Goal feasibility.
+  const gr = goalReport(s, now);
+  if (gr) {
+    if (gr.overall === 'unrealistic' || gr.overall === 'ambitious')
+      out.push({
+        id: 'goal-feasibility',
+        severity: gr.overall === 'unrealistic' ? 'alert' : 'warn',
+        title: gr.overall === 'unrealistic' ? 'Your goal is not realistic by the target date' : 'Your goal is ambitious',
+        detail: gr.warnings.slice(0, 2).join(' ') || 'Progress needed per week is above what is typical at your level.',
+        actions: ['Open Coach → Goals to see projected dates and apply an adjusted target.'],
+      });
+    else if (gr.overall === 'on-track') out.push({ id: 'goal-ok', severity: 'good', title: 'On track for your goal', detail: `${gr.weeksLeft.toFixed(0)} weeks left; projections reach every target in time.`, actions: ['Keep the current plan and nutrition.'] });
+    if (gr.macros?.adjustment)
+      out.push({ id: 'goal-kcal', severity: 'info', title: `Adjust calories by ${gr.macros.adjustment.kcal > 0 ? '+' : ''}${gr.macros.adjustment.kcal} kcal/day`, detail: gr.macros.adjustment.reason, actions: ['Change intake for 2-3 weeks, then re-check the bodyweight trend.'] });
+  }
+
   if (!workouts.length)
     out.push({ id: 'empty', severity: 'info', title: 'Not enough data yet', detail: 'The coach needs a few weeks of logged sessions to spot trends.', actions: ['Log your workouts (with RPE if you can) and check back after 3-4 weeks.'] });
 
@@ -313,6 +330,7 @@ export function trainingSummary(s: AppState, now = Date.now()): string {
       lines.push(`- ${d.exerciseId === '_recovery' ? 'Recovery' : getExercise(d.exerciseId, s)?.name ?? d.exerciseId}: ${parts.join('; ')}`);
     }
   }
+  lines.push('', goalSummary(s));
   const maxes = Object.entries(s.manualMaxes);
   if (maxes.length) lines.push('', `Tested maxes: ${maxes.map(([id, v]) => `${getExercise(id, s)?.name ?? id} ${v}`).join(', ')}.`);
   return lines.join('\n');

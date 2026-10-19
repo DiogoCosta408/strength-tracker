@@ -134,6 +134,8 @@ export interface LoggedSet {
   reps: number;
   rpe?: number;
   done: boolean;
+  /** Weight was filled in by the app (not typed), so it may be re-adjusted mid-session. */
+  autoWeight?: boolean;
   /** What the template asked for, kept for reference. */
   target?: SetPrescription;
 }
@@ -167,6 +169,29 @@ export interface BodyweightEntry {
 
 export type Sex = 'male' | 'female';
 
+/** Daily intake log (optional) — lets the coach estimate real maintenance calories. */
+export interface NutritionEntry {
+  id: string;
+  date: string; // YYYY-MM-DD
+  kcal: number;
+  protein?: number;
+}
+
+export interface LiftGoal {
+  exerciseId: string;
+  /** Target e1RM in kg (total load for bodyweight exercises). */
+  target: number;
+}
+
+export interface Goals {
+  targetDate: string; // YYYY-MM-DD
+  lifts: LiftGoal[];
+  bodyweight?: number;
+  createdAt: string;
+  /** Values when the goal was set, for progress bars. */
+  start: { lifts: Record<string, number>; bodyweight?: number };
+}
+
 export interface Profile {
   name: string;
   sex: Sex;
@@ -177,6 +202,9 @@ export interface Profile {
   /** Plates available per side, kg. */
   plates: number[];
   defaultRest: number;
+  heightCm?: number;
+  /** Activity outside training, for the calorie estimate. */
+  activity?: 'low' | 'moderate' | 'high';
   /** Which formula to use for e1RM when no RPE is logged. */
   e1rmFormula: 'epley' | 'brzycki';
 }
@@ -219,4 +247,6 @@ export interface AppState {
   diagnoses: Record<string, Diagnosis>;
   /** Conversation with the AI coach. */
   coachChat: CoachMessage[];
+  goals?: Goals;
+  nutrition: NutritionEntry[];
 }

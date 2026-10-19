@@ -11,7 +11,9 @@ A mobile-first strength training log for powerlifters and barbell athletes. It r
   - fixed kg
   - `% of today's top set`, for load-drop back-offs
   - linear progression (`+kg` after a successful session; repeat the load after a miss)
+- **In-session autoregulation**: once you log a set with an RPE, the remaining app-suggested sets re-calculate from today's e1RM. If 5 @ RPE 7 felt like RPE 8, the next jumps get smaller. After a top set that overshoots its target RPE, back-off sets are based on the weight that would have hit the target. Weights you type yourself are never changed.
 - **Programs / templates**: built-in templates are Starting Strength, RPE Novice (Barbell Medicine style), GZCLP, Texas Method, 5/3/1 BBB, a 4+1 RPE powerlifting block and a meet peak. You can copy and customize any of them or build your own (weeks → days → exercises → sets). Follow a program and the app queues the next session.
+- **Import / export programs**: share templates as `.program.json` files. `scripts/bbm_template_to_program.py` converts a Barbell Medicine weekly template spreadsheet (RPE ramps, load drops, repeats, %e1RM work, GPP) into one.
 - **Exercise library**: 225 exercises with competition-lift variations (pause / pin / tempo / SSB / deficit / block / Larsen / Spoto / board…), muscles and equipment. You can add your own.
 - **Calculators**:
   - 1RM (7 formulas plus the RPE chart, with a rep-max table)
@@ -25,7 +27,9 @@ A mobile-first strength training log for powerlifters and barbell athletes. It r
   - **Insights** (offline, automatic): for squat, bench, deadlift and press it detects progressing, stalled and regressing lifts (e1RM trend over 6 weeks, weeks since PR). Likely causes it checks for: RPE drift at the same loads (fatigue), low frequency, low or high weekly volume, too little or too much heavy work, no variations, a finished linear progression, a drop in training frequency, a falling bodyweight, and lifts that lag behind the others. Each finding comes with concrete actions.
   - **Diagnose** (offline): a short interview per lift covering where it fails (e.g. off the chest / mid-range / lockout), what breaks down technically, how heavy reps feel, plus sleep, diet phase and stress. It answers with targeted variations and accessories (sets × reps @ RPE, addable to your program in one tap), technique cues and programming changes.
   - **Ask coach** (AI): a chat with a Claude-powered strength coach. It reads a summary of your last 6 weeks, the lift analysis and your diagnostic answers, asks follow-up questions before prescribing, then gives a plan. It needs your own Anthropic API key, which is stored on the device only.
-- **Bodyweight tracker** with a 7-day moving average.
+- **Goals**: target lifts (kg or a strength level), target bodyweight and a date. The coach projects each lift week by week (progress slows as you get stronger and in a calorie deficit, blended with your own trend). It rates each goal on track, ambitious or not realistic, offers an adjusted target or date, and warns about conflicts such as cutting while chasing PRs.
+- **Nutrition**: calorie and macro targets for the goal. They start from an estimate (Mifflin-St Jeor × activity); once ~10 days of intake are logged, maintenance is worked out from your intake and weight trend, and calories are adjusted when weight drifts off plan.
+- **Bodyweight tracker** with a 7-day moving average and optional daily calories / protein.
 - **Share best lifts**: pick which lifts to share. It builds a PNG card (optional total, DOTS/Wilks and muscle map) and opens the native share sheet, or copies the lifts as text.
 - **Data**:
   - export/import a JSON backup, either as a file or as copied text
@@ -58,6 +62,7 @@ Data lives in the browser's IndexedDB on that device. Export a backup regularly 
 | `src/lib/workout.ts` | Starting / finishing workouts from program days, warm-ups, back-offs |
 | `src/lib/store.ts` | App state, IndexedDB persistence, lookups |
 | `src/lib/coach.ts` | Training analysis: trends, stalls, fatigue, volume/intensity, insights, AI context summary |
+| `src/lib/goals.ts` | Goal feasibility, projections, adjusted targets, calorie and macro plan |
 | `src/lib/coachAi.ts` | Claude API client for the chat coach (streaming, prompt caching, refusal fallback) |
 | `src/data/coachKnowledge.ts` | Diagnostic questions and weak-point → variation/cue/programming knowledge base |
 | `src/data/exercises.ts` | Exercise library |

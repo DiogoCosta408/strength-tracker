@@ -96,6 +96,30 @@ export function Sheet({ title, onClose, children, actions }: { title: ReactNode;
   );
 }
 
+/** A small "?" button that opens an explanation, so screens can stay terse. */
+export function Help({ title, children }: { title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        className="help-btn"
+        aria-label={`About: ${title}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+      >
+        ?
+      </button>
+      {open && (
+        <Sheet title={title} onClose={() => setOpen(false)}>
+          <div className="help-body">{children}</div>
+        </Sheet>
+      )}
+    </>
+  );
+}
+
 export function Stat({ label, value, sub }: { label: ReactNode; value: ReactNode; sub?: ReactNode }) {
   return (
     <div className="stat">

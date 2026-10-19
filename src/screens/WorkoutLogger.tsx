@@ -3,7 +3,7 @@ import type { LoggedExercise, LoggedSet, SetKind, SetPrescription, Workout } fro
 import { fmtKg, platesFor, RPE_VALUES } from '../lib/calc';
 import { getExercise, getState, update, useAppState } from '../lib/store';
 import { bestE1rm, lastPerformance, setE1rm, suggestLoad, workoutPRs, type PR } from '../lib/stats';
-import { addWarmups, applyBackoffs, discardActive, emptyExercise, finishActive, newSet, updateActive, updateExercise } from '../lib/workout';
+import { addWarmups, discardActive, emptyExercise, finishActive, newSet, reflowSuggestions, todayE1rm, topSetBase, updateActive, updateExercise } from '../lib/workout';
 import { fmtDate, fmtDuration, uid, todayISO } from '../lib/util';
 import { ExercisePicker } from '../components/ExercisePicker';
 import { startRest } from '../components/RestTimer';
@@ -168,7 +168,8 @@ function ExerciseCard({ le, index, count, workout, onReplace }: { le: LoggedExer
   const best = useMemo(() => bestE1rm(s, le.exerciseId), [s.workouts, s.manualMaxes, le.exerciseId]); // eslint-disable-line react-hooks/exhaustive-deps
   const todayBest = Math.max(0, ...le.sets.filter((x) => x.done && x.kind !== 'warmup').map((x) => setE1rm(s, ex, x, bw)));
   const isBarbell = ex?.equipment === 'barbell';
-  const topDone = [...le.sets].reverse().find((x) => x.kind === 'top' && x.done)?.weight;
+  const topDone = topSetBase(s, le);
+  const today = todayE1rm(s, le);
 
   const setSet = (id: string, patch: Partial<LoggedSet>) => updateExercise(le.id, (e) => ({ ...e, sets: e.sets.map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
 
@@ -177,13 +178,13 @@ function ExerciseCard({ le, index, count, workout, onReplace }: { le: LoggedExer
     if (!set.done) {
       // Accept the prescription when fields were left blank.
       let weight = set.weight;
-      if (!weight && set.target && !ex?.bodyweightLoaded) weight = suggestLoad(st, le.exerciseId, set.target, topDone) ?? 0;
+      if (!weight && set.target && !ex?.bodyweightLoaded) weight = suggestLoad(st, le.exerciseId, set.target, topDone, today) ?? 0;
       const reps = set.reps || set.target?.reps || 0;
       if (!reps) {
         toast('Enter reps first');
         return;
       }
-      updateExercise(le.id, (e) => applyBackoffs(st, { ...e, sets: e.sets.map((x) => (x.id === set.id ? { ...x, weight, reps, done: true } : x)) }));
+      updateExercise(le.id, (e) => reflowSuggestions(st, { ...e, sets: e.sets.map((x) => (x.id === set.id ? { ...x, weight, reps, done: true } : x)) }));
       const isLast = le.sets[le.sets.length - 1].id === set.id;
       if (!isLast || index < count - 1) startRest(set.kind === 'warmup' ? Math.min(90, le.rest ?? st.profile.defaultRest) : le.rest ?? st.profile.defaultRest);
     } else setSet(set.id, { done: false });
@@ -235,7 +236,7 @@ function ExerciseCard({ le, index, count, workout, onReplace }: { le: LoggedExer
       </div>
       {le.sets.map((set) => {
         if (set.kind !== 'warmup') workNo++;
-        const sugg = set.target && !set.done ? suggestLoad(s, le.exerciseId, set.target, topDone) : undefined;
+        const sugg = set.target && !set.done ? suggestLoad(s, le.exerciseId, set.target, topDone, today) : undefined;
         const e1 = set.weight || ex?.bodyweightLoaded ? setE1rm(s, ex, { ...set, reps: set.reps || set.target?.reps || 0 }, bw) : 0;
         const plates = isBarbell && set.weight > s.profile.barWeight ? platesFor(set.weight, s.profile.barWeight, s.profile.plates) : null;
         return (
@@ -249,9 +250,9 @@ function ExerciseCard({ le, index, count, workout, onReplace }: { le: LoggedExer
               >
                 {KIND_LABEL[set.kind] || workNo}
               </button>
-              <NumInput blankZero value={set.weight} placeholder={sugg !== undefined ? fmtKg(sugg) : ex?.bodyweightLoaded ? 'BW' : 'kg'} ariaLabel="Weight" onChange={(v) => setSet(set.id, { weight: v ?? 0 })} />
+              <NumInput blankZero value={set.weight} placeholder={sugg !== undefined ? fmtKg(sugg) : ex?.bodyweightLoaded ? 'BW' : 'kg'} ariaLabel="Weight" onChange={(v) => setSet(set.id, { weight: v ?? 0, autoWeight: false })} />
               <NumInput blankZero value={set.reps} placeholder={set.target ? String(set.target.reps) : 'reps'} ariaLabel="Reps" onChange={(v) => setSet(set.id, { reps: Math.max(0, Math.round(v ?? 0)) })} />
-              <select aria-label="RPE" value={set.rpe ?? ''} onChange={(e) => setSet(set.id, { rpe: e.target.value ? parseFloat(e.target.value) : undefined })}>
+              <select aria-label="RPE" value={set.rpe ?? ''} onChange={(e) => { const rpe = e.target.value ? parseFloat(e.target.value) : undefined; updateExercise(le.id, (x) => reflowSuggestions(getState(), { ...x, sets: x.sets.map((y) => (y.id === set.id ? { ...y, rpe } : y)) })); }}>
                 <option value="">{set.target?.rpe ? `@${set.target.rpe}` : '–'}</option>
                 {RPE_VALUES.map((r) => (
                   <option key={r} value={r}>
@@ -267,7 +268,7 @@ function ExerciseCard({ le, index, count, workout, onReplace }: { le: LoggedExer
               <div className="set-meta">
                 {set.target && <span>{targetText(set.target)}</span>}
                 {sugg !== undefined && !set.weight && <span> → {fmtKg(sugg)} kg</span>}
-                {e1 > 0 && set.kind !== 'warmup' && <span> · e1RM {fmtKg(e1 - (ex?.bodyweightLoaded ? bw ?? 0 : 0))}</span>}
+                {e1 > 0 && set.done && set.kind !== 'warmup' && <span> · e1RM {fmtKg(e1 - (ex?.bodyweightLoaded ? bw ?? 0 : 0))}</span>}
                 {plates && plates.perSide.length > 0 && (
                   <span>
                     {' '}

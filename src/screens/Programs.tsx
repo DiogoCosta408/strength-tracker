@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { ExercisePrescription, Program, ProgramDay, SetKind, SetPrescription } from '../types';
+import { useRef, useState } from 'react';
+import type { Exercise, ExercisePrescription, Program, ProgramDay, SetKind, SetPrescription } from '../types';
 import { flattenDays } from '../data/programs';
 import { allPrograms, exerciseName, getProgram, getState, update, useAppState } from '../lib/store';
 import { suggestLoad } from '../lib/stats';
@@ -11,9 +11,53 @@ import { ask, go, Icon, NumInput, TopBar, toast } from '../components/ui';
 import { targetText } from './WorkoutLogger';
 import { summarizeSets } from './Train';
 
+interface ProgramFile {
+  format: 'strength-tracker-program';
+  version: 1;
+  program: Program;
+  customExercises?: Exercise[];
+}
+
+/** Adds a program (and the custom exercises it needs) from an exported program file. */
+async function importProgramFile(file: File): Promise<Program | undefined> {
+  let data: ProgramFile;
+  try {
+    data = JSON.parse(await file.text());
+  } catch {
+    toast('That file is not a program file');
+    return;
+  }
+  const p = data?.program;
+  if (data?.format !== 'strength-tracker-program' || !p?.name || !Array.isArray(p.weeks)) {
+    toast('That file is not a program file');
+    return;
+  }
+  const existing = getState().programs.find((x) => x.id === p.id);
+  if (existing && !(await ask(`Replace your existing “${existing.name}”?`, { confirmLabel: 'Replace' }))) return;
+  const program: Program = { ...p, id: p.id || 'user-' + uid(), builtIn: false };
+  update((st) => {
+    const known = new Set(st.customExercises.map((e) => e.id));
+    const newEx = (data.customExercises ?? []).filter((e) => !known.has(e.id)).map((e) => ({ ...e, custom: true }));
+    return { ...st, customExercises: [...st.customExercises, ...newEx], programs: [...st.programs.filter((x) => x.id !== program.id), program] };
+  });
+  toast(`Imported ${program.name}`);
+  return program;
+}
+
+function exportProgram(p: Program) {
+  const st = getState();
+  const ids = new Set(p.weeks.flatMap((w) => w.days.flatMap((d) => d.exercises.map((e) => e.exerciseId))));
+  const file: ProgramFile = { format: 'strength-tracker-program', version: 1, program: p, customExercises: st.customExercises.filter((e) => ids.has(e.id)) };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(file, null, 1)], { type: 'application/json' }));
+  a.download = `${p.name.replace(/[^\w-]+/g, '-').toLowerCase()}.program.json`;
+  a.click();
+}
+
 export function ProgramList() {
   const s = useAppState();
   const programs = allPrograms(s);
+  const fileRef = useRef<HTMLInputElement>(null);
   const create = () => {
     const p: Program = { id: 'user-' + uid(), name: 'My program', description: '', weeks: [{ name: 'Week 1', days: [{ id: uid(), name: 'Day 1', exercises: [] }] }] };
     update((st) => ({ ...st, programs: [...st.programs, p] }));
@@ -32,10 +76,6 @@ export function ProgramList() {
             <div className="small muted">
               {[p.author, p.level, `${flattenDays(p).length} sessions / cycle`].filter(Boolean).join(' · ')}
             </div>
-            <div className="small" style={{ marginTop: 4, color: 'var(--text-2)' }}>
-              {p.description.slice(0, 140)}
-              {p.description.length > 140 ? '…' : ''}
-            </div>
           </button>
         ))}
       </>
@@ -45,10 +85,27 @@ export function ProgramList() {
       <TopBar
         title="Programs"
         right={
-          <button className="btn-primary btn-sm" onClick={create}>
-            <Icon name="plus" size={16} /> New
-          </button>
+          <>
+            <button className="btn-sm" onClick={() => fileRef.current?.click()}>
+              Import
+            </button>
+            <button className="btn-primary btn-sm" onClick={create}>
+              <Icon name="plus" size={16} /> New
+            </button>
+          </>
         }
+      />
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        hidden
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          e.target.value = '';
+          const p = f && (await importProgramFile(f));
+          if (p) go(`/program/${p.id}`);
+        }}
       />
       <Section title="My programs" list={programs.filter((p) => !p.builtIn)} />
       <Section title="Templates" list={programs.filter((p) => p.builtIn)} />
@@ -77,9 +134,14 @@ export function ProgramDetail({ id }: { id: string }) {
         backTo="/programs"
         right={
           !p.builtIn ? (
-            <button className="btn-sm" onClick={() => go(`/program-edit/${p.id}`)}>
-              <Icon name="edit" size={16} /> Edit
-            </button>
+            <>
+              <button className="btn-sm" onClick={() => exportProgram(p)}>
+                Export
+              </button>
+              <button className="btn-sm" onClick={() => go(`/program-edit/${p.id}`)}>
+                <Icon name="edit" size={16} /> Edit
+              </button>
+            </>
           ) : undefined
         }
       />
@@ -255,7 +317,6 @@ export function ProgramEditor({ id }: { id: string }) {
           Delete week
         </button>
       </div>
-      <p className="tiny muted">“+ Week” duplicates the selected week so you can tweak loads/RPE for a progression.</p>
 
       {p.weeks[wi].days.map((d, di) => (
         <div className="card" key={d.id}>
