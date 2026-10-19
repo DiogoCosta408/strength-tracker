@@ -241,6 +241,7 @@ export function ProgramEditor({ id }: { id: string }) {
   const p = s.programs.find((x) => x.id === id);
   const [week, setWeek] = useState(0);
   const [picker, setPicker] = useState<string | null>(null); // day id
+  const [swapping, setSwapping] = useState<{ dayId: string; idx: number } | null>(null);
   if (!p) return <div className="empty">Program not found (built-in templates must be copied before editing).</div>;
   const wi = Math.min(week, p.weeks.length - 1);
 
@@ -330,7 +331,9 @@ export function ProgramEditor({ id }: { id: string }) {
           {d.exercises.map((e, ei) => (
             <div key={ei} style={{ borderTop: '1px solid var(--border)', marginTop: 10, paddingTop: 8 }}>
               <div className="row">
-                <span className="bold grow">{exerciseName(e.exerciseId, s)}</span>
+                <button className="btn-ghost bold grow" style={{ justifyContent: 'flex-start', padding: 0, minHeight: 0 }} onClick={() => setSwapping({ dayId: d.id, idx: ei })}>
+                  {exerciseName(e.exerciseId, s)}
+                </button>
                 <button className="btn-ghost icon-btn" aria-label="Move up" disabled={ei === 0} onClick={() => save((c) => swap(c.weeks[wi].days[di].exercises, ei, ei - 1))}>
                   <Icon name="up" size={18} />
                 </button>
@@ -414,6 +417,17 @@ export function ProgramEditor({ id }: { id: string }) {
           onPick={(ex) => {
             save((c) => c.weeks[wi].days.find((x) => x.id === picker)!.exercises.push({ exerciseId: ex.id, sets: [{ kind: 'work', reps: 5, rpe: 8 }, { kind: 'work', reps: 5, rpe: 8 }, { kind: 'work', reps: 5, rpe: 8 }], rest: 180 }));
             setPicker(null);
+          }}
+        />
+      )}
+
+      {swapping && (
+        <ExercisePicker
+          title="Swap exercise"
+          onClose={() => setSwapping(null)}
+          onPick={(ex) => {
+            updateEx(swapping.dayId, swapping.idx, (x) => (x.exerciseId = ex.id));
+            setSwapping(null);
           }}
         />
       )}
