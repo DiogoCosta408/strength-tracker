@@ -3,7 +3,7 @@ import type { Goals, Profile } from '../types';
 import { fmtKg } from '../lib/calc';
 import { bodyweightAt, exerciseName, update, useAppState } from '../lib/store';
 import { bestE1rm } from '../lib/stats';
-import { goalReport, targetForLevel, type Feasibility, type LiftGoalStatus } from '../lib/goals';
+import { goalProgressPct, goalReport, targetForLevel, type Feasibility, type LiftGoalStatus } from '../lib/goals';
 import { LEVELS } from '../lib/strength';
 import { fmtDate, nowISO, todayISO } from '../lib/util';
 import { ask, go, Help, NumInput, Segmented, Sheet, toast } from '../components/ui';
@@ -95,8 +95,22 @@ export function GoalsPanel({ onAsk }: { onAsk: (text: string) => void }) {
             <span className={`status ${FEAS_CLASS[report.bodyweight.feasibility]}`}>{FEAS_LABEL[report.bodyweight.feasibility]}</span>
           </div>
           <Progress start={report.bodyweight.start ?? report.bodyweight.current} current={report.bodyweight.current} target={report.bodyweight.target} unit="kg" />
-          <div className="small muted">
-            Needs {pct(report.bodyweight.requiredPct)}/wk{report.bodyweight.observedPct !== undefined && <> · trend {pct(report.bodyweight.observedPct)}/wk</>}
+          <div className="grid3" style={{ marginTop: 10 }}>
+            <div className="stat">
+              <div className="label">Progress</div>
+              <div className="value num">{Math.round(goalProgressPct(report.bodyweight.start ?? report.bodyweight.current, report.bodyweight.current, report.bodyweight.target))}%</div>
+              <div className="sub num">{fmtKg(Math.abs(report.bodyweight.target - report.bodyweight.current))} kg to go</div>
+            </div>
+            <div className="stat">
+              <div className="label">Needed / wk</div>
+              <div className="value num">{fmtRate(rateKg(report.bodyweight.requiredPct, report.bodyweight.current))}</div>
+              <div className="sub num">{pct(report.bodyweight.requiredPct)}/wk</div>
+            </div>
+            <div className="stat">
+              <div className="label">Current / wk</div>
+              <div className="value num">{report.bodyweight.observedPct !== undefined ? fmtRate(rateKg(report.bodyweight.observedPct, report.bodyweight.current)) : '—'}</div>
+              <div className="sub num">{report.bodyweight.observedPct !== undefined ? `${pct(report.bodyweight.observedPct)}/wk` : 'needs ~2 weeks'}</div>
+            </div>
           </div>
           {(report.bodyweight.adjustedTarget || report.bodyweight.adjustedDate) && (
             <div className="row wrap" style={{ marginTop: 8 }}>
@@ -176,8 +190,7 @@ function Macro({ label, g, logged }: { label: string; g: number; logged?: number
 }
 
 function Progress({ start, current, target, unit }: { start: number; current: number; target: number; unit: string }) {
-  const span = target - start;
-  const frac = span ? Math.max(0, Math.min(1, (current - start) / span)) : current >= target ? 1 : 0;
+  const done = goalProgressPct(start, current, target);
   return (
     <div style={{ margin: '8px 0' }}>
       <div className="row between small num">
@@ -189,7 +202,40 @@ function Progress({ start, current, target, unit }: { start: number; current: nu
         </span>
       </div>
       <div className="level-bar" style={{ marginTop: 4 }}>
-        <div style={{ width: `${frac * 100}%`, background: 'var(--accent)' }} />
+        <div style={{ width: `${done}%`, background: 'var(--accent)' }} />
+      </div>
+    </div>
+  );
+}
+
+/** Weekly rate in kg, from a %/week of the current load. */
+const rateKg = (pctPerWeek: number, current: number) => (pctPerWeek / 100) * current;
+const fmtRate = (kg: number) => `${kg >= 0 ? '+' : '−'}${fmtKg(Math.abs(kg))} kg`;
+
+/** Progress, the rate the goal needs, and the rate actually being hit — all in kg/week. */
+function GoalRates({ l }: { l: LiftGoalStatus }) {
+  const done = goalProgressPct(l.start, l.current, l.target);
+  const needed = Number.isFinite(l.requiredPct) ? rateKg(l.requiredPct, l.current) : undefined;
+  const actual = l.observedPct !== undefined ? rateKg(l.observedPct, l.current) : undefined;
+  // Green when on pace, red only when actually losing ground — a positive rate that's merely
+  // behind the target is still progress and shouldn't be coloured like a failure.
+  const rateClass = actual === undefined ? '' : actual < 0 ? 'bad' : needed !== undefined && actual >= needed ? 'good' : '';
+  return (
+    <div className="grid3" style={{ marginTop: 10 }}>
+      <div className="stat">
+        <div className="label">Progress</div>
+        <div className="value num">{Math.round(done)}%</div>
+        <div className="sub num">{fmtKg(Math.max(0, l.target - l.current))} kg to go</div>
+      </div>
+      <div className="stat">
+        <div className="label">Needed / wk</div>
+        <div className="value num">{needed !== undefined ? fmtRate(needed) : '—'}</div>
+        <div className="sub num">{Number.isFinite(l.requiredPct) ? `${pct(l.requiredPct)}/wk` : 'date passed'}</div>
+      </div>
+      <div className="stat">
+        <div className="label">Current / wk</div>
+        <div className={`value num ${rateClass}`}>{actual !== undefined ? fmtRate(actual) : '—'}</div>
+        <div className="sub num">{l.observedPct !== undefined ? `${pct(l.observedPct)}/wk` : 'needs ~6 sessions'}</div>
       </div>
     </div>
   );
@@ -206,9 +252,12 @@ function LiftGoalCard({ l, onSetTarget, onSetDate }: { l: LiftGoalStatus; onSetT
       {l.feasibility === 'no-data' ? (
         <p className="small muted">Log this lift to track it.</p>
       ) : l.feasibility !== 'achieved' ? (
-        <div className="small muted">
-          Needs {Number.isFinite(l.requiredPct) ? pct(l.requiredPct) : '—'}/wk · realistic {pct(l.realisticPct)}/wk · projected <b className="num" style={{ color: 'var(--text)' }}>{fmtKg(l.projectedAtDate)} kg</b>
-        </div>
+        <>
+          <GoalRates l={l} />
+          <div className="small muted" style={{ marginTop: 8 }}>
+            Realistic {pct(l.realisticPct)}/wk at your level · projected <b className="num" style={{ color: 'var(--text)' }}>{fmtKg(l.projectedAtDate)} kg</b> by the target date
+          </div>
+        </>
       ) : (
         <p className="small good">Target reached 🎉</p>
       )}

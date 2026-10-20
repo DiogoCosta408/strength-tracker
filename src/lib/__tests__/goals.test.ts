@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AppState, Workout } from '../../types';
 import { DEFAULT_STATE } from '../store';
-import { ageRateFactor, estimatedMaintenance, goalReport, levelRate, macroPlan } from '../goals';
+import { ageRateFactor, estimatedMaintenance, goalProgressPct, goalReport, levelRate, macroPlan } from '../goals';
 
 const NOW = Date.now();
 const DAY = 86400000;
@@ -96,5 +96,27 @@ describe('age in projections', () => {
     const young = goalReport(base({ workouts, goals, profile: { ...DEFAULT_STATE.profile, sex: 'male', heightCm: 180, birthYear: new Date().getFullYear() - 25 } }), NOW)!;
     const masters = goalReport(base({ workouts, goals, profile: { ...DEFAULT_STATE.profile, sex: 'male', heightCm: 180, birthYear: new Date().getFullYear() - 60 } }), NOW)!;
     expect(masters.lifts[0].projectedAtDate).toBeLessThan(young.lifts[0].projectedAtDate);
+  });
+});
+
+describe('goalProgressPct', () => {
+  it('measures from where the goal started, not from zero', () => {
+    expect(goalProgressPct(100, 150, 200)).toBe(50);
+    expect(goalProgressPct(100, 100, 200)).toBe(0);
+    expect(goalProgressPct(100, 200, 200)).toBe(100);
+  });
+
+  it('clamps outside the range', () => {
+    expect(goalProgressPct(100, 90, 200)).toBe(0); // went backwards
+    expect(goalProgressPct(100, 250, 200)).toBe(100); // overshot
+  });
+
+  it('handles a goal already met when it was set', () => {
+    expect(goalProgressPct(200, 200, 200)).toBe(100);
+    expect(goalProgressPct(200, 150, 200)).toBe(0);
+  });
+
+  it('works for a cut, where the target is below the start', () => {
+    expect(goalProgressPct(90, 85, 80)).toBe(50);
   });
 });

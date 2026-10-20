@@ -111,6 +111,17 @@ export function ageRateFactor(age?: number): number {
   return Math.max(0.35, 1 - (age - 30) * 0.012);
 }
 
+/**
+ * How far along a goal is, 0-100. Measured from where the goal started, not from zero, so
+ * it answers "how much of what I set out to add have I added" rather than flattering a
+ * lifter who was already most of the way there when they set it.
+ */
+export function goalProgressPct(start: number, current: number, target: number): number {
+  const span = target - start;
+  if (!span) return current >= target ? 100 : 0;
+  return Math.max(0, Math.min(100, ((current - start) / span) * 100));
+}
+
 /** Bodyweight-change effect on strength progress (%/week of bodyweight). */
 function dietFactor(bwPctPerWeek: number): number {
   if (bwPctPerWeek <= -0.75) return 0.15; // aggressive cut: hold strength at best
