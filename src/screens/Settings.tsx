@@ -125,31 +125,69 @@ function CloudSyncCard() {
 
 export function More() {
   const s = useAppState();
+  const sync = useSyncState();
+  const [connecting, setConnecting] = useState(false);
   const items = [
-    { to: '/tools', icon: 'calc', label: 'Calculators', sub: '1RM, RPE, Wilks/DOTS, plates, meet attempts' },
-    { to: '/history', icon: 'history', label: 'Workout history', sub: `${s.workouts.length} sessions` },
-    { to: '/body', icon: 'scale', label: 'Bodyweight tracker', sub: `${s.bodyweight.length} entries` },
-    { to: '/strength', icon: 'body', label: 'Strength profile & muscle map', sub: 'Standards, levels, imbalances' },
-    { to: '/share', icon: 'share', label: 'Share best lifts', sub: 'Image card or text' },
-    { to: '/exercises', icon: 'search', label: 'Exercise library', sub: 'Variations, records, history' },
-    { to: '/settings', icon: 'settings', label: 'Settings & backup', sub: 'Profile, plates, export / import' },
+    { to: '/tools', icon: 'calc', label: 'Calculators', sub: '1RM, RPE, Wilks/DOTS, plates' },
+    { to: '/history', icon: 'history', label: 'History', sub: `${s.workouts.length} sessions` },
+    { to: '/body', icon: 'scale', label: 'Bodyweight', sub: `${s.bodyweight.length} entries` },
+    { to: '/strength', icon: 'body', label: 'Strength profile', sub: 'Muscle map, levels, imbalances' },
+    { to: '/share', icon: 'share', label: 'Share lifts', sub: 'Image card or text' },
+    { to: '/exercises', icon: 'search', label: 'Exercises', sub: 'Variations, records, history' },
+    { to: '/settings', icon: 'settings', label: 'Settings', sub: 'Profile, plates, backup' },
   ];
   return (
     <div>
       <TopBar title="More" />
-      <div className="card tight">
-        <div className="list">
-          {items.map((i) => (
-            <button key={i.to} className="list-item" onClick={() => go(i.to)}>
-              <Icon name={i.icon} />
-              <div className="grow">
-                <div className="bold">{i.label}</div>
-                <div className="small muted">{i.sub}</div>
-              </div>
-              <span className="muted">›</span>
-            </button>
-          ))}
+
+      {/* Sync is easy to miss buried in Settings, so the offer to turn it on lives here. */}
+      {sync.status === 'disconnected' ? (
+        <div className="card accent">
+          <h3 style={{ margin: 0 }}>Back up & sync your log</h3>
+          <p className="small muted" style={{ marginTop: 4 }}>
+            Keep the same log on your phone and computer, saved in a private folder of your own Google Drive. Only this app can read it.
+          </p>
+          <button
+            className="btn-primary btn-block"
+            style={{ marginTop: 10 }}
+            disabled={connecting}
+            onClick={async () => {
+              setConnecting(true);
+              try {
+                await connectDrive();
+              } catch (e) {
+                toast(e instanceof Error ? e.message : 'Could not connect');
+              } finally {
+                setConnecting(false);
+              }
+            }}
+          >
+            {connecting ? 'Connecting…' : 'Connect Google Drive'}
+          </button>
         </div>
+      ) : (
+        <button className="card tight list-item" style={{ display: 'flex', borderRadius: 14, border: '1px solid var(--border)' }} onClick={() => go('/settings')}>
+          <Icon name="settings" />
+          <div className="grow">
+            <div className="bold">Cloud sync</div>
+            <div className={`small ${sync.status === 'error' || sync.status === 'reconnect' ? 'bad' : 'muted'}`}>
+              {sync.status === 'syncing' ? 'Syncing…' : sync.status === 'reconnect' ? 'Reconnect needed' : sync.status === 'error' ? 'Sync failed' : sync.lastSyncedAt ? `Synced ${relTime(sync.lastSyncedAt)}` : 'Connected'}
+            </div>
+          </div>
+          <span className="muted">›</span>
+        </button>
+      )}
+
+      <div className="grid2" style={{ marginTop: 10 }}>
+        {items.map((i) => (
+          <button key={i.to} className="tile" onClick={() => go(i.to)}>
+            <span className="tile-icon">
+              <Icon name={i.icon} size={20} />
+            </span>
+            <span className="bold">{i.label}</span>
+            <span className="tiny muted">{i.sub}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
