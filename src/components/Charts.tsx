@@ -10,7 +10,13 @@ const W = 340;
 const H = 170;
 const PAD = { l: 34, r: 10, t: 12, b: 22 };
 
-function niceTicks(min: number, max: number, count = 4): number[] {
+/**
+ * Gridline values covering [min, max]. The range is rounded *outwards*: the last tick is
+ * never below max. Charts scale to the top tick, so a top tick under the data's own maximum
+ * puts bars and lines above the plot area — and since .chart is overflow:visible, they then
+ * draw over whatever sits above the chart (this is what covered the card headings).
+ */
+export function niceTicks(min: number, max: number, count = 4): number[] {
   if (min === max) {
     min -= 1;
     max += 1;
@@ -20,7 +26,8 @@ function niceTicks(min: number, max: number, count = 4): number[] {
   const mag = Math.pow(10, Math.floor(Math.log10(step0)));
   const step = [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= step0) ?? step0;
   const out: number[] = [];
-  for (let v = Math.floor(min / step) * step; v <= max + 1e-9; v += step) out.push(Math.round(v * 100) / 100);
+  const end = Math.ceil(max / step) * step;
+  for (let v = Math.floor(min / step) * step; v <= end + 1e-9; v += step) out.push(Math.round(v * 100) / 100);
   return out;
 }
 
@@ -131,7 +138,7 @@ export function BarChart({ bars, unit = '', height = 150 }: { bars: Bar[]; unit?
   const h = height;
   const max = Math.max(1, ...bars.map((b) => b.value));
   const ticks = niceTicks(0, max, 3);
-  const top = ticks[ticks.length - 1];
+  const top = Math.max(ticks[ticks.length - 1], max); // belt and braces: never scale below the tallest bar
   const sy = (v: number) => h - PAD.b - (v / top) * (h - PAD.t - PAD.b);
   const bw = (W - PAD.l - PAD.r) / bars.length;
   const fmt = (v: number) => (v >= 10000 ? `${Math.round(v / 1000)}k` : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v)}`);
@@ -161,8 +168,8 @@ export function BarChart({ bars, unit = '', height = 150 }: { bars: Bar[]; unit?
               {bh > 0 && (
                 <path
                   d={`M${x},${h - PAD.b} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${h - PAD.b} Z`}
-                  fill="var(--accent)"
-                  opacity={hover === null || hover === i ? 1 : 0.45}
+                  fill={hover === i ? 'var(--accent)' : 'var(--accent-dim)'}
+                  opacity={hover === null || hover === i ? 1 : 0.5}
                 />
               )}
               {i % Math.ceil(bars.length / 6) === 0 && (

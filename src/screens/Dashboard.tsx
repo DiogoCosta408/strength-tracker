@@ -243,14 +243,15 @@ export function Dashboard() {
       </div>
 
       <div className="card">
-        <div className="row between" style={{ marginBottom: 6 }}>
-          <div className="title-row">
-            <h3>Weekly training</h3>
+        {/* stacked: the heading and the toggle collide side by side at phone width */}
+        <div style={{ marginBottom: 8 }}>
+          <div className="title-row" style={{ marginBottom: 8 }}>
+            <h3 style={{ margin: 0 }}>Weekly training</h3>
             <Help title="Weekly training">
               <p>Tonnage = kg × reps of all work sets. Hard sets = work sets at RPE 7+ (or without an RPE). Last 12 weeks.</p>
             </Help>
           </div>
-          <div style={{ width: 170 }}>
+          <div>
             <Segmented value={volMetric} onChange={setVolMetric} options={[{ value: 'tonnage', label: 'Tonnage' }, { value: 'hardSets', label: 'Hard sets' }]} />
           </div>
         </div>

@@ -9,6 +9,8 @@
   --accent: #e08a00;
   --accent-ink: #1b1200;
   --accent-soft: #fff1d6;
+  /* Softer accent for large filled areas (chart bars), so data doesn't shout louder than the UI. */
+  --accent-dim: #f3bd6b;
   --good: #1f8f4e;
   --warn: #b26b00;
   --bad: #c9362f;
@@ -17,52 +19,60 @@
   --body-stroke: #f4f5f7;
   --muscle-empty: #b5bac5;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.05);
+  --shadow-pop: 0 8px 28px rgba(0, 0, 0, 0.14);
+  --surface-blur: rgba(255, 255, 255, 0.82);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --bg: #0f1115;
-    --surface: #181b21;
-    --surface-2: #22262e;
-    --border: #2d323c;
+    --surface: #191d24;
+    --surface-2: #232833;
+    --border: #2b313c;
     --text: #eef0f4;
     --text-2: #b4bac6;
     --muted: #7f8796;
     --accent: #ffb020;
     --accent-ink: #1b1200;
     --accent-soft: #3a2c10;
+    --accent-dim: #a9772a;
     --good: #45c27a;
     --warn: #f0a63a;
     --bad: #ff6b61;
-    --grid: #262a33;
+    --grid: #252a33;
     --body-fill: #3a3f4b;
     --body-stroke: #15171c;
     --muscle-empty: #4a505c;
-    --shadow: none;
+    --shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+    --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.55);
+    --surface-blur: rgba(25, 29, 36, 0.82);
     color-scheme: dark;
   }
 }
 
 :root[data-theme='dark'] {
   --bg: #0f1115;
-  --surface: #181b21;
-  --surface-2: #22262e;
-  --border: #2d323c;
+  --surface: #191d24;
+  --surface-2: #232833;
+  --border: #2b313c;
   --text: #eef0f4;
   --text-2: #b4bac6;
   --muted: #7f8796;
   --accent: #ffb020;
   --accent-ink: #1b1200;
   --accent-soft: #3a2c10;
+  --accent-dim: #a9772a;
   --good: #45c27a;
   --warn: #f0a63a;
   --bad: #ff6b61;
-  --grid: #262a33;
+  --grid: #252a33;
   --body-fill: #3a3f4b;
   --body-stroke: #15171c;
   --muscle-empty: #4a505c;
-  --shadow: none;
+  --shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.55);
+  --surface-blur: rgba(25, 29, 36, 0.82);
   color-scheme: dark;
 }
 
@@ -98,6 +108,7 @@ h1 {
 h2 {
   font-size: 17px;
   margin: 20px 0 8px;
+  letter-spacing: -0.01em;
 }
 h3 {
   font-size: 15px;
@@ -132,6 +143,7 @@ a {
   padding: 14px;
   margin: 10px 0;
   box-shadow: var(--shadow);
+  transition: border-color 0.15s ease;
 }
 .card.tight {
   padding: 10px 12px;
@@ -212,9 +224,14 @@ button,
   gap: 6px;
   text-decoration: none;
   white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.08s ease;
 }
 button:active {
-  transform: scale(0.98);
+  transform: scale(0.985);
 }
 button:disabled {
   opacity: 0.45;
@@ -404,8 +421,30 @@ label.field > span {
   color: var(--muted);
   text-decoration: none;
 }
+.tabbar a {
+  position: relative;
+}
 .tabbar a.on {
   color: var(--accent);
+}
+/* Short bar at the top edge of the active tab, so the active state doesn't rely on colour alone. */
+.tabbar a.on::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 24px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--accent);
+}
+
+/* Let the page show through the nav where the browser supports it. */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tabbar {
+    background: var(--surface-blur);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
 }
 .tabbar svg {
   width: 24px;
@@ -522,6 +561,7 @@ label.field > span {
   max-width: 640px;
   max-height: 92dvh;
   border-radius: 18px 18px 0 0;
+  box-shadow: var(--shadow-pop);
   display: flex;
   flex-direction: column;
   padding-bottom: env(safe-area-inset-bottom);
@@ -583,12 +623,7 @@ label.field > span {
 .level-bar > div {
   height: 100%;
   border-radius: 4px;
-}
-
-.legend-ramp {
-  height: 10px;
-  border-radius: 5px;
-  background: linear-gradient(90deg, rgb(214, 69, 65), rgb(236, 150, 50), rgb(222, 205, 60), rgb(70, 185, 100), rgb(60, 140, 230), rgb(150, 90, 220));
+  transition: width 0.3s ease;
 }
 
 table.tbl {
