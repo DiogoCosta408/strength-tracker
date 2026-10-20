@@ -136,10 +136,7 @@ export const EXERCISES: Exercise[] = [
   ex('rack-pull', 'Rack Pull (Mid-Shin)', 'deadlift', 'barbell', ['glutes', 'lowerBack', 'traps'], ['hamstrings', 'upperBack', 'forearms'], 'Bar on pins at mid-shin'),
   ex('rack-pull-above-knee', 'Rack Pull (Above Knee)', 'deadlift', 'barbell', ['traps', 'lowerBack', 'glutes'], ['upperBack', 'forearms']),
   ex('sumo-block-pull', 'Sumo Block Pull', 'deadlift', 'barbell', ['glutes', 'adductors', 'lowerBack'], ['traps', 'upperBack', 'forearms']),
-  ex('romanian-deadlift', 'Romanian Deadlift', 'deadlift', 'barbell', HINGE_P, HINGE_S, {
-    standard: 'rdl',
-    notes: 'Hinge from the top with soft knees, bar to mid-shin',
-  }),
+  ex('romanian-deadlift', 'Romanian Deadlift', 'deadlift', 'barbell', HINGE_P, HINGE_S, 'Hinge from the top with soft knees, bar to mid-shin'),
   ex('stiff-leg-deadlift', 'Stiff-Leg Deadlift', 'deadlift', 'barbell', HINGE_P, HINGE_S, 'From the floor, minimal knee bend, each rep dead-stop'),
   ex('dumbbell-rdl', 'Dumbbell Romanian Deadlift', 'deadlift', 'dumbbell', HINGE_P, ['lowerBack', 'forearms']),
   ex('single-leg-rdl', 'Single-Leg RDL', 'deadlift', 'dumbbell', HINGE_P, ['adductors', 'lowerBack', 'forearms']),
@@ -156,7 +153,14 @@ export const EXERCISES: Exercise[] = [
 
   // ---------------------------------------------------------------- PRESS
   ex('press', 'Overhead Press', 'press', 'barbell', OHP_P, OHP_S, { standard: 'press', notes: 'Standing strict press' }),
-  ex('push-press', 'Push Press', 'press', 'barbell', OHP_P, ['sideDelts', 'quads', 'glutes', 'traps', 'abs'], 'Dip and drive with the legs'),
+  ex('push-press', 'Push Press', 'press', 'barbell', OHP_P, ['sideDelts', 'quads', 'glutes', 'traps', 'abs'], {
+    standard: 'pushPress',
+    notes: 'Dip and drive with the legs',
+  }),
+  ex('snatch-grip-press', 'Snatch-Grip Press', 'press', 'barbell', OHP_P, ['sideDelts', 'traps', 'upperBack'], {
+    standard: 'snatchGripPress',
+    notes: 'Strict press from the shoulders with a wide, snatch-width grip',
+  }),
   ex('behind-the-neck-press', 'Behind-the-Neck Press', 'press', 'barbell', ['frontDelts', 'sideDelts', 'triceps'], ['traps', 'upperBack']),
   ex('z-press', 'Z Press', 'press', 'barbell', OHP_P, ['sideDelts', 'abs', 'upperBack'], 'Seated on the floor, legs extended'),
   ex('seated-press', 'Seated Barbell Press', 'press', 'barbell', OHP_P, ['sideDelts', 'upperBack']),
@@ -231,7 +235,7 @@ export const EXERCISES: Exercise[] = [
   ex('lying-leg-curl', 'Lying Leg Curl', 'legs', 'machine', ['hamstrings'], ['calves']),
   ex('nordic-curl', 'Nordic Hamstring Curl', 'legs', 'bodyweight', ['hamstrings'], ['glutes', 'calves'], BW),
   ex('glute-ham-raise', 'Glute-Ham Raise', 'legs', 'bodyweight', ['hamstrings', 'glutes'], ['calves', 'lowerBack'], BW),
-  ex('hip-thrust', 'Hip Thrust', 'legs', 'barbell', ['glutes'], ['hamstrings', 'quads', 'adductors'], { standard: 'hipThrust' }),
+  ex('hip-thrust', 'Hip Thrust', 'legs', 'barbell', ['glutes'], ['hamstrings', 'quads', 'adductors']),
   ex('glute-bridge', 'Glute Bridge', 'legs', 'barbell', ['glutes'], ['hamstrings']),
   ex('single-leg-hip-thrust', 'Single-Leg Hip Thrust', 'legs', 'bodyweight', ['glutes'], ['hamstrings', 'abs'], BW),
   ex('back-extension', 'Back Extension', 'back', 'bodyweight', ['lowerBack', 'glutes'], ['hamstrings'], { ...BW, notes: '45° or horizontal hyperextension' }),

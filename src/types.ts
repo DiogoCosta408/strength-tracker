@@ -48,6 +48,7 @@ export type Equipment =
   | 'other';
 
 /** Canonical lifts used for strength standards and the muscle map. */
+/** The 14 lifts Symmetric Strength publishes standards for — see src/lib/strength.ts. */
 export type StandardLift =
   | 'squat'
   | 'frontSquat'
@@ -56,13 +57,13 @@ export type StandardLift =
   | 'deadlift'
   | 'sumoDeadlift'
   | 'press'
+  | 'pushPress'
+  | 'snatchGripPress'
   | 'powerClean'
   | 'row'
   | 'chinup'
   | 'pullup'
-  | 'dip'
-  | 'rdl'
-  | 'hipThrust';
+  | 'dip';
 
 export interface Exercise {
   id: string;

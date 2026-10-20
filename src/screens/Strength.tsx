@@ -4,7 +4,7 @@ import { MUSCLE_LABELS } from '../data/exercises';
 import { fmtKg } from '../lib/calc';
 import { bodyweightAt, exerciseName, getExercise, update, useAppState } from '../lib/store';
 import { standings, strengthScoreHistory } from '../lib/stats';
-import { balanceScore, LEVELS, levelFor, LIFT_LABELS, LIFT_MUSCLES, loadForLevel, muscleScores, scoreColor } from '../lib/strength';
+import { balanceScore, LEVELS, levelFor, LIFT_LABELS, LIFT_MUSCLES, loadForLevel, loadForScore, muscleScores, scoreColor } from '../lib/strength';
 import { BodyMap } from '../components/BodyMap';
 import { LineChart } from '../components/Charts';
 import { go, Help, NumInput, Sheet, TopBar } from '../components/ui';
@@ -18,13 +18,13 @@ const STANDARD_IDS: Record<StandardLift, string> = {
   deadlift: 'deadlift',
   sumoDeadlift: 'sumo-deadlift',
   press: 'press',
+  pushPress: 'push-press',
+  snatchGripPress: 'snatch-grip-press',
   powerClean: 'power-clean',
   row: 'barbell-row',
   chinup: 'chin-up',
   pullup: 'pull-up',
   dip: 'dip',
-  rdl: 'romanian-deadlift',
-  hipThrust: 'hip-thrust',
 };
 
 export function useStrengthProfile() {
@@ -60,7 +60,8 @@ export function StrengthLegend() {
     <div className="row wrap center" style={{ gap: '4px 12px', justifyContent: 'center', marginTop: 8 }}>
       {LEVELS.map((l) => (
         <span key={l.name} className="tiny muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <span style={{ width: 9, height: 9, borderRadius: '50%', background: scoreColor(l.min + 10), display: 'inline-block', flexShrink: 0 }} />
+          {/* each level's own colour stop, so a muscle sitting exactly at that level matches its swatch */}
+          <span style={{ width: 9, height: 9, borderRadius: '50%', background: scoreColor(l.min), display: 'inline-block', flexShrink: 0 }} />
           {l.name}
         </span>
       ))}
@@ -104,7 +105,7 @@ export function StrengthScoreCard({ max = 5, onClick }: { max?: number; onClick?
           <div key={x.lift} className="row" style={{ alignItems: 'center', gap: 8, padding: '3px 0' }}>
             <span className="small ellipsis" style={{ width: 96, flexShrink: 0 }}>{LIFT_LABELS[x.lift]}</span>
             <div className="level-bar grow">
-              <div style={{ width: `${Math.min(100, (x.score / 120) * 100)}%`, background: scoreColor(x.score) }} />
+              <div style={{ width: `${Math.min(100, x.score)}%`, background: scoreColor(x.score) }} />
             </div>
             <span className="tiny muted num" style={{ width: 26, textAlign: 'right' }}>{Math.round(x.score)}</span>
           </div>
@@ -169,7 +170,8 @@ export function Strength() {
               Each lift is scored from your best e1RM over the last year relative to {bw} kg bodyweight ({s.profile.sex}
               {age ? `, ${age}y` : ''}). Muscles are coloured by the lifts that train them. Tap a muscle to see which lifts count.
             </p>
-            <p>20 pts = Novice, 40 = Intermediate, 60 = Advanced, 80 = Elite, 100 = World class. Standards are approximations from public strength-standard data, scaled by sex and age.</p>
+            <p>The scale runs to 100 at World class, with a level every 12.5 points: 25 = Novice, 37.5 = Intermediate, 50 = Proficient, 62.5 = Advanced, 75 = Exceptional, 87.5 = Elite.</p>
+            <p>Standards come from Symmetric Strength's published tables, converted to bodyweight ratios and adjusted for sex and age. Their model scales by Wilks rather than a flat ratio, so these track it closely rather than matching exactly.</p>
             <p>Imbalances list lifts more than 10 pts below your average. Tap a lift to enter a tested max.</p>
           </Help>
         }
@@ -229,7 +231,7 @@ export function Strength() {
               </span>
             </div>
             <div className="level-bar" style={{ margin: '6px 0' }}>
-              <div style={{ width: `${Math.min(100, (x.score / 120) * 100)}%`, background: scoreColor(x.score) }} />
+              <div style={{ width: `${Math.min(100, x.score)}%`, background: scoreColor(x.score) }} />
             </div>
             <div className="row between tiny muted">
               <span>
@@ -259,11 +261,7 @@ export function Strength() {
 }
 
 function liftLoadAtScore(lift: StandardLift, score: number, bw: number, sex: 'male' | 'female', age: number | undefined, bwLoaded?: boolean): number {
-  const i = Math.floor(score / 20);
-  const lo = i === 0 ? 0 : loadForLevel(lift, i, bw, sex, age);
-  const hi = loadForLevel(lift, Math.min(5, i + 1), bw, sex, age);
-  const total = lo + ((hi - lo) * (score - i * 20)) / 20;
-  return total - (bwLoaded ? bw : 0);
+  return loadForScore(lift, score, bw, sex, age) - (bwLoaded ? bw : 0);
 }
 
 function ManualMaxSheet({ lift, onClose }: { lift: StandardLift; onClose: () => void }) {

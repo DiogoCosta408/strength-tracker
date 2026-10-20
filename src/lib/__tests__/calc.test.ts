@@ -48,10 +48,32 @@ describe('plates', () => {
 });
 
 describe('strength standards', () => {
-  it('maps thresholds to level scores', () => {
-    expect(liftScore('squat', 150, 100, 'male')).toBeCloseTo(40);
-    expect(liftScore('squat', 200, 100, 'male')).toBeCloseTo(60);
+  // Symmetric Strength's columns, as bodyweight ratios (see MALE_STANDARDS in strength.ts).
+  it('lands each standards column on its level score', () => {
+    expect(liftScore('squat', 76.3, 100, 'male')).toBeCloseTo(12.5, 1); // untrained
+    expect(liftScore('squat', 113.8, 100, 'male')).toBeCloseTo(25, 1); // novice
+    expect(liftScore('squat', 151.3, 100, 'male')).toBeCloseTo(37.5, 1); // intermediate
+    expect(liftScore('squat', 221.3, 100, 'male')).toBeCloseTo(62.5, 1); // advanced
+    expect(liftScore('squat', 252.5, 100, 'male')).toBeCloseTo(75, 1); // exceptional
+    expect(liftScore('squat', 316.3, 100, 'male')).toBeCloseTo(100, 1); // world class
+  });
+
+  it('interpolates between columns and extrapolates past world class', () => {
+    const between = liftScore('squat', 150, 100, 'male');
+    expect(between).toBeGreaterThan(25);
+    expect(between).toBeLessThan(37.5);
+    expect(liftScore('squat', 400, 100, 'male')).toBeGreaterThan(100);
+    expect(liftScore('squat', 1000, 100, 'male')).toBeLessThanOrEqual(125);
+  });
+
+  it('scores women against their own standards, not a scaled copy', () => {
+    expect(liftScore('squat', 123.8, 100, 'female')).toBeCloseTo(37.5, 1);
+    expect(liftScore('squat', 123.8, 100, 'male')).toBeLessThan(37.5);
+  });
+
+  it('is zero without a logged lift or a bodyweight', () => {
     expect(liftScore('bench', 0, 100, 'male')).toBe(0);
+    expect(liftScore('bench', 100, 0, 'male')).toBe(0);
   });
   it('colours only muscles trained by scored lifts', () => {
     const m = muscleScores({ bench: 50 });

@@ -1,71 +1,89 @@
 import type { Muscle, Sex, StandardLift } from '../types';
 
 /**
- * Strength standards expressed as 1RM / bodyweight ratios for adult males.
- * Thresholds mark the start of: Novice, Intermediate, Advanced, Elite, World class.
- * For bodyweight-loaded lifts (chin-up, pull-up, dip) the ratio is (bodyweight + added) / bodyweight.
- * These are approximations compiled from common public standards; treat them as a guide.
+ * Strength standards as 1RM / bodyweight ratios, one column per level:
+ * Untrained, Novice, Intermediate, Proficient, Advanced, Exceptional, Elite, World class.
+ *
+ * Derived from Symmetric Strength's published standards (symmetricstrength.com/standards),
+ * read off their 80 kg male and 63 kg female reference tables and divided by that bodyweight.
+ * For bodyweight-loaded lifts (chin-up, pull-up, dip) their "+kg added" figures are converted
+ * to a total-load ratio, (bodyweight + added) / bodyweight, which is what this app scores.
+ *
+ * Their model scales by Wilks rather than a flat bodyweight ratio, so these are a close
+ * approximation anchored at those two bodyweights rather than an exact reproduction.
  */
-const MALE_STANDARDS: Record<StandardLift, [number, number, number, number, number]> = {
-  squat: [1.0, 1.5, 2.0, 2.5, 3.0],
-  frontSquat: [0.85, 1.25, 1.65, 2.05, 2.45],
-  bench: [0.75, 1.0, 1.4, 1.8, 2.2],
-  inclineBench: [0.6, 0.85, 1.2, 1.5, 1.85],
-  deadlift: [1.25, 1.75, 2.25, 2.85, 3.4],
-  sumoDeadlift: [1.25, 1.75, 2.25, 2.85, 3.4],
-  press: [0.5, 0.7, 0.9, 1.1, 1.35],
-  powerClean: [0.65, 0.9, 1.15, 1.4, 1.65],
-  row: [0.6, 0.85, 1.15, 1.45, 1.75],
-  chinup: [1.05, 1.3, 1.55, 1.8, 2.05],
-  pullup: [1.0, 1.25, 1.5, 1.75, 2.0],
-  dip: [1.1, 1.4, 1.75, 2.1, 2.45],
-  rdl: [0.95, 1.4, 1.85, 2.3, 2.75],
-  hipThrust: [1.0, 1.6, 2.2, 2.8, 3.4],
+type Standards = [number, number, number, number, number, number, number, number];
+
+const MALE_STANDARDS: Record<StandardLift, Standards> = {
+  squat: [0.763, 1.138, 1.513, 1.9, 2.213, 2.525, 2.85, 3.163],
+  frontSquat: [0.613, 0.913, 1.213, 1.513, 1.775, 2.025, 2.275, 2.525],
+  bench: [0.563, 0.85, 1.138, 1.413, 1.65, 1.888, 2.125, 2.363],
+  inclineBench: [0.463, 0.7, 0.925, 1.163, 1.35, 1.55, 1.738, 1.938],
+  deadlift: [0.875, 1.313, 1.75, 2.175, 2.538, 2.913, 3.275, 3.638],
+  sumoDeadlift: [0.875, 1.313, 1.75, 2.175, 2.538, 2.913, 3.275, 3.638],
+  press: [0.363, 0.55, 0.738, 0.925, 1.075, 1.225, 1.388, 1.538],
+  pushPress: [0.488, 0.738, 0.975, 1.225, 1.425, 1.638, 1.838, 2.038],
+  snatchGripPress: [0.3, 0.438, 0.588, 0.738, 0.863, 0.988, 1.1, 1.225],
+  powerClean: [0.488, 0.738, 0.975, 1.225, 1.425, 1.625, 1.825, 2.038],
+  row: [0.463, 0.688, 0.925, 1.15, 1.35, 1.538, 1.738, 1.925],
+  chinup: [1.013, 1.15, 1.313, 1.5, 1.663, 1.825, 1.975, 2.125],
+  pullup: [0.975, 1.138, 1.275, 1.438, 1.6, 1.763, 1.913, 2.05],
+  dip: [1.1, 1.288, 1.5, 1.713, 1.925, 2.125, 2.313, 2.525],
 };
 
-/** Female standards as a fraction of male ratios (upper body is relatively lower). */
-const FEMALE_FACTOR: Record<StandardLift, number> = {
-  squat: 0.72,
-  frontSquat: 0.72,
-  bench: 0.6,
-  inclineBench: 0.6,
-  deadlift: 0.75,
-  sumoDeadlift: 0.75,
-  press: 0.62,
-  powerClean: 0.7,
-  row: 0.65,
-  chinup: 0.82,
-  pullup: 0.82,
-  dip: 0.8,
-  rdl: 0.75,
-  hipThrust: 0.85,
+const FEMALE_STANDARDS: Record<StandardLift, Standards> = {
+  squat: [0.619, 0.921, 1.238, 1.54, 1.81, 2.063, 2.317, 2.571],
+  frontSquat: [0.492, 0.746, 0.984, 1.238, 1.444, 1.651, 1.857, 2.063],
+  bench: [0.413, 0.635, 0.841, 1.048, 1.222, 1.397, 1.571, 1.746],
+  inclineBench: [0.349, 0.524, 0.683, 0.857, 1.0, 1.143, 1.286, 1.429],
+  deadlift: [0.73, 1.111, 1.476, 1.841, 2.143, 2.46, 2.762, 3.063],
+  sumoDeadlift: [0.73, 1.111, 1.476, 1.841, 2.143, 2.46, 2.762, 3.063],
+  press: [0.27, 0.413, 0.54, 0.683, 0.794, 0.905, 1.016, 1.143],
+  pushPress: [0.365, 0.54, 0.73, 0.905, 1.063, 1.206, 1.365, 1.508],
+  snatchGripPress: [0.222, 0.333, 0.429, 0.54, 0.635, 0.73, 0.825, 0.905],
+  powerClean: [0.413, 0.619, 0.825, 1.032, 1.206, 1.381, 1.54, 1.714],
+  row: [0.397, 0.587, 0.778, 0.968, 1.143, 1.302, 1.46, 1.619],
+  chinup: [0.794, 0.921, 1.032, 1.159, 1.286, 1.413, 1.54, 1.635],
+  // Their table has no untrained pull-up figure for women; extrapolated from the step above it.
+  pullup: [0.762, 0.889, 1.016, 1.127, 1.238, 1.365, 1.492, 1.587],
+  dip: [0.857, 1.0, 1.127, 1.27, 1.397, 1.54, 1.667, 1.794],
 };
 
 export const LIFT_LABELS: Record<StandardLift, string> = {
-  squat: 'Squat',
+  squat: 'Back squat',
   frontSquat: 'Front squat',
   bench: 'Bench press',
   inclineBench: 'Incline bench',
   deadlift: 'Deadlift',
   sumoDeadlift: 'Sumo deadlift',
   press: 'Overhead press',
+  pushPress: 'Push press',
+  snatchGripPress: 'Snatch-grip press',
   powerClean: 'Power clean',
-  row: 'Barbell row',
+  row: 'Pendlay row',
   chinup: 'Chin-up',
   pullup: 'Pull-up',
   dip: 'Dip',
-  rdl: 'Romanian deadlift',
-  hipThrust: 'Hip thrust',
 };
 
+/** Symmetric Strength's eight benchmark levels. `min` is where each one starts on the 0-100 score. */
 export const LEVELS = [
-  { name: 'Beginner', min: 0 },
-  { name: 'Novice', min: 20 },
-  { name: 'Intermediate', min: 40 },
-  { name: 'Advanced', min: 60 },
-  { name: 'Elite', min: 80 },
+  { name: 'Untrained', min: 0 },
+  { name: 'Novice', min: 25 },
+  { name: 'Intermediate', min: 37.5 },
+  { name: 'Proficient', min: 50 },
+  { name: 'Advanced', min: 62.5 },
+  { name: 'Exceptional', min: 75 },
+  { name: 'Elite', min: 87.5 },
   { name: 'World class', min: 100 },
 ] as const;
+
+/**
+ * Score each standards column maps to. The untrained column lands mid-way through the
+ * untrained band rather than at 0, so there's still room to show progress below it — a
+ * beginner working up to the untrained standard moves from 0 to 12.5 rather than sitting at 0.
+ */
+const LEVEL_SCORES: Standards = [12.5, 25, 37.5, 50, 62.5, 75, 87.5, 100];
 
 export function levelFor(score: number): string {
   let name: string = LEVELS[0].name;
@@ -81,31 +99,47 @@ export function ageFactor(age?: number): number {
   return 1 + (age - 40) * 0.01 + Math.max(0, age - 55) * 0.01;
 }
 
-export function standardsFor(lift: StandardLift, sex: Sex): number[] {
-  const f = sex === 'male' ? 1 : FEMALE_FACTOR[lift];
-  return MALE_STANDARDS[lift].map((x) => x * f);
+export function standardsFor(lift: StandardLift, sex: Sex): Standards {
+  return sex === 'male' ? MALE_STANDARDS[lift] : FEMALE_STANDARDS[lift];
 }
 
 /**
- * Score 0..~120 for a lift: thresholds map to 20/40/60/80/100, linear in between,
- * below Novice scales linearly from 0, above World class extrapolates.
+ * Score 0..~125 for a lift: each standards column maps to its level's score, linear in
+ * between, below the untrained standard scales from 0, above world class extrapolates.
  */
 export function liftScore(lift: StandardLift, oneRm: number, bodyweight: number, sex: Sex, age?: number): number {
   if (!oneRm || !bodyweight) return 0;
   const ratio = (oneRm / bodyweight) * ageFactor(age);
   const t = standardsFor(lift, sex);
-  if (ratio <= t[0]) return (ratio / t[0]) * 20;
+  if (ratio <= t[0]) return (ratio / t[0]) * LEVEL_SCORES[0];
   for (let i = 1; i < t.length; i++) {
-    if (ratio <= t[i]) return 20 * i + ((ratio - t[i - 1]) / (t[i] - t[i - 1])) * 20;
+    if (ratio <= t[i]) return LEVEL_SCORES[i - 1] + ((ratio - t[i - 1]) / (t[i] - t[i - 1])) * (LEVEL_SCORES[i] - LEVEL_SCORES[i - 1]);
   }
-  const last = t[t.length - 1] - t[t.length - 2];
-  return Math.min(125, 100 + ((ratio - t[t.length - 1]) / last) * 20);
+  const n = t.length - 1;
+  return Math.min(125, LEVEL_SCORES[n] + ((ratio - t[n]) / (t[n] - t[n - 1])) * (LEVEL_SCORES[n] - LEVEL_SCORES[n - 1]));
 }
 
-/** Load needed to reach a given score threshold. */
+/** Load that reaches a given level (index into LEVELS). */
 export function loadForLevel(lift: StandardLift, levelIndex: number, bodyweight: number, sex: Sex, age?: number): number {
   const t = standardsFor(lift, sex);
-  return (t[levelIndex - 1] * bodyweight) / ageFactor(age);
+  const i = Math.max(0, Math.min(t.length - 1, levelIndex));
+  return (t[i] * bodyweight) / ageFactor(age);
+}
+
+/** Inverse of liftScore: the load that would score this many points. */
+export function loadForScore(lift: StandardLift, score: number, bodyweight: number, sex: Sex, age?: number): number {
+  const t = standardsFor(lift, sex);
+  let ratio: number;
+  if (score <= LEVEL_SCORES[0]) {
+    ratio = (score / LEVEL_SCORES[0]) * t[0];
+  } else {
+    const i = LEVEL_SCORES.findIndex((s) => score <= s);
+    const hi = i === -1 ? t.length - 1 : i;
+    const lo = hi - 1;
+    const span = LEVEL_SCORES[hi] - LEVEL_SCORES[lo];
+    ratio = t[lo] + ((score - LEVEL_SCORES[lo]) / span) * (t[hi] - t[lo]);
+  }
+  return (ratio * bodyweight) / ageFactor(age);
 }
 
 /** How much each lift trains each muscle (0..1). Drives the body map. */
@@ -117,13 +151,13 @@ export const LIFT_MUSCLES: Record<StandardLift, Partial<Record<Muscle, number>>>
   deadlift: { lowerBack: 1, glutes: 0.9, hamstrings: 0.8, traps: 0.7, upperBack: 0.6, lats: 0.4, quads: 0.4, forearms: 0.7, adductors: 0.4 },
   sumoDeadlift: { glutes: 1, adductors: 0.9, quads: 0.6, lowerBack: 0.8, hamstrings: 0.6, traps: 0.6, upperBack: 0.5, forearms: 0.7 },
   press: { frontDelts: 1, sideDelts: 0.7, triceps: 0.8, traps: 0.4, upperBack: 0.3, abs: 0.3 },
+  pushPress: { frontDelts: 1, sideDelts: 0.7, triceps: 0.7, quads: 0.4, glutes: 0.3, traps: 0.4, abs: 0.3 },
+  snatchGripPress: { frontDelts: 1, sideDelts: 0.8, triceps: 0.6, traps: 0.5, upperBack: 0.4 },
   powerClean: { traps: 1, glutes: 0.6, quads: 0.5, hamstrings: 0.5, lowerBack: 0.5, upperBack: 0.6, calves: 0.3, rearDelts: 0.3, forearms: 0.4 },
   row: { upperBack: 1, lats: 0.9, rearDelts: 0.7, biceps: 0.5, lowerBack: 0.4, forearms: 0.4, traps: 0.4 },
   chinup: { lats: 1, biceps: 0.9, upperBack: 0.6, forearms: 0.5, abs: 0.2 },
   pullup: { lats: 1, upperBack: 0.7, biceps: 0.6, forearms: 0.5, rearDelts: 0.3 },
   dip: { triceps: 1, chest: 0.7, frontDelts: 0.6 },
-  rdl: { hamstrings: 1, glutes: 0.8, lowerBack: 0.8, forearms: 0.4, upperBack: 0.3 },
-  hipThrust: { glutes: 1, hamstrings: 0.4, quads: 0.2 },
 };
 
 export const ALL_MUSCLES: Muscle[] = [
@@ -150,15 +184,17 @@ export function muscleScores(scores: Partial<Record<StandardLift, number>>): Rec
   return out;
 }
 
-/** Colour ramp: red (weak) → amber → green → blue → purple (world class). */
+/** Colour ramp, one stop per level: grey (untrained) → red → amber → green → teal → blue → purple. */
 const STOPS: [number, [number, number, number]][] = [
   [0, [120, 120, 130]],
-  [20, [214, 69, 65]],
-  [40, [236, 150, 50]],
-  [60, [222, 205, 60]],
-  [80, [70, 185, 100]],
-  [100, [60, 140, 230]],
-  [120, [150, 90, 220]],
+  [25, [214, 69, 65]],
+  [37.5, [236, 150, 50]],
+  [50, [222, 205, 60]],
+  [62.5, [70, 185, 100]],
+  [75, [45, 180, 165]],
+  [87.5, [60, 140, 230]],
+  [100, [150, 90, 220]],
+  [125, [196, 92, 196]],
 ];
 
 /**
@@ -174,7 +210,7 @@ export function balanceScore(scores: { score: number }[]): number {
 
 export function scoreColor(score: number | null | undefined): string {
   if (score === null || score === undefined) return 'var(--muscle-empty, #4a505c)';
-  const s = Math.max(0, Math.min(120, score));
+  const s = Math.max(0, Math.min(125, score));
   for (let i = 1; i < STOPS.length; i++) {
     const [s1, c1] = STOPS[i];
     const [s0, c0] = STOPS[i - 1];

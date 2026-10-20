@@ -173,7 +173,7 @@ function standardLiftExercises(s: AppState): (Exercise & { standard: StandardLif
 }
 
 function allStandardExercises(s: AppState): Exercise[] {
-  const ids = ['squat', 'front-squat', 'bench-press', 'incline-bench-press', 'deadlift', 'sumo-deadlift', 'press', 'power-clean', 'barbell-row', 'chin-up', 'pull-up', 'dip', 'romanian-deadlift', 'hip-thrust'];
+  const ids = ['squat', 'front-squat', 'bench-press', 'incline-bench-press', 'deadlift', 'sumo-deadlift', 'press', 'push-press', 'snatch-grip-press', 'power-clean', 'barbell-row', 'chin-up', 'pull-up', 'dip'];
   return ids.map((id) => getExercise(id, s)).filter((x): x is Exercise => !!x);
 }
 

@@ -83,13 +83,16 @@ const STANDARD_OF: Record<string, StandardLift> = {
  * Typical e1RM gain per week (%) at a strength score, assuming good training and a
  * small surplus. Novices progress fast; returns diminish sharply with level.
  */
+/** Typical %/week gain at each of the eight standards levels (see LEVELS in strength.ts). */
 export function levelRate(score: number): number {
-  if (score < 20) return 1.5;
-  if (score < 40) return 1.0;
-  if (score < 60) return 0.45;
-  if (score < 80) return 0.2;
-  if (score < 100) return 0.1;
-  return 0.05;
+  if (score < 25) return 1.5; // untrained
+  if (score < 37.5) return 1.0; // novice
+  if (score < 50) return 0.6; // intermediate
+  if (score < 62.5) return 0.45; // proficient
+  if (score < 75) return 0.25; // advanced
+  if (score < 87.5) return 0.15; // exceptional
+  if (score < 100) return 0.1; // elite
+  return 0.05; // world class
 }
 
 /**
