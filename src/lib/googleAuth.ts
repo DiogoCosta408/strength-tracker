@@ -36,7 +36,39 @@ function callbackUrl(): string {
   return new URL('oauth-callback.html', location.href).toString();
 }
 
-let cachedToken: { token: string; expiresAt: number } | undefined;
+interface Token {
+  token: string;
+  expiresAt: number;
+}
+
+/**
+ * The access token is persisted, not just held in memory: the app is reopened as a fresh page
+ * load every time, so an in-memory-only token meant every open had nothing to sync with and
+ * silently fell back to "Reconnect". It's a bearer token limited to this app's own hidden
+ * Drive folder, kept in this origin's localStorage and cleared on Disconnect, and it expires
+ * on its own in about an hour.
+ */
+const TOKEN_KEY = 'gdrive-token';
+
+function readToken(): Token | undefined {
+  try {
+    const raw = localStorage.getItem(TOKEN_KEY);
+    if (!raw) return undefined;
+    const t = JSON.parse(raw) as Token;
+    return t?.token && t?.expiresAt ? t : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeToken(t: Token | undefined): void {
+  try {
+    if (t) localStorage.setItem(TOKEN_KEY, JSON.stringify(t));
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 export function isConnected(): boolean {
   try {
@@ -79,7 +111,7 @@ export function consumePendingToken(): void {
       /* ignore */
     }
     if (!error && token && expiresAt && expectedState && state === expectedState) {
-      cachedToken = { token, expiresAt };
+      writeToken({ token, expiresAt });
       setConnected(true);
     }
   } catch {
@@ -114,13 +146,15 @@ export function connect(): void {
 }
 
 export function disconnect(): void {
-  cachedToken = undefined;
+  writeToken(undefined);
   setConnected(false);
 }
 
 /** A valid access token, or throws ReconnectRequiredError if there isn't one (no silent refresh — see module docs). */
 export async function getAccessToken(): Promise<string> {
   if (!isConnected()) throw new ReconnectRequiredError('Not connected to Google Drive.');
-  if (cachedToken && cachedToken.expiresAt - 60_000 > Date.now()) return cachedToken.token;
-  throw new ReconnectRequiredError();
+  const t = readToken();
+  if (t && t.expiresAt - 60_000 > Date.now()) return t.token;
+  writeToken(undefined); // expired — one tap on Reconnect gets a fresh one
+  throw new ReconnectRequiredError('Google sign-in expired — tap Reconnect.');
 }

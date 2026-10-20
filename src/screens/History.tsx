@@ -84,6 +84,23 @@ export function WorkoutDetail({ id }: { id: string }) {
         {w.finishedAt && ` · ${fmtDuration(new Date(w.finishedAt).getTime() - new Date(w.startedAt).getTime())}`}
         {bw ? ` · BW ${bw} kg` : ''} · {Math.round(workoutTonnage(w)).toLocaleString()} kg total
       </div>
+      {editing && (
+        <label className="field" style={{ marginTop: 8 }}>
+          <span>Date & time (for sessions logged after the fact)</span>
+          <input
+            type="datetime-local"
+            value={toLocalInput(w.startedAt)}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              const started = new Date(e.target.value);
+              if (isNaN(started.getTime())) return;
+              // Keep however long the session took; only move it on the calendar.
+              const duration = w.finishedAt ? new Date(w.finishedAt).getTime() - new Date(w.startedAt).getTime() : 0;
+              save({ ...w, startedAt: started.toISOString(), finishedAt: w.finishedAt ? new Date(started.getTime() + duration).toISOString() : undefined });
+            }}
+          />
+        </label>
+      )}
       {w.notes && <div className="card tight small">{w.notes}</div>}
       {w.exercises.map((e) => {
         const ex = getExercise(e.exerciseId, s);
@@ -167,6 +184,13 @@ export function WorkoutDetail({ id }: { id: string }) {
       </div>
     </div>
   );
+}
+
+/** ISO timestamp → the local "YYYY-MM-DDTHH:mm" a datetime-local input expects. */
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function patchSet(w: Workout, exId: string, setId: string, patch: Partial<Workout['exercises'][number]['sets'][number]>): Workout {
