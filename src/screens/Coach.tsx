@@ -483,6 +483,7 @@ function KeySetup({ onSaved }: { onSaved: () => void }) {
         <span>Google AI Studio API key</span>
         <input id="coach-api-key" type="password" autoComplete="off" placeholder="AIza…" value={key} onChange={(e) => setKey(e.target.value)} />
       </label>
+      {key.trim().length > 0 && key.trim().length < 20 && <p className="small muted">That looks too short — a Google AI Studio key is around 39 characters.</p>}
       <div className="row">
         {getApiKey() && (
           <button
@@ -496,9 +497,10 @@ function KeySetup({ onSaved }: { onSaved: () => void }) {
             Remove key
           </button>
         )}
+        {/* Length only — don't pin a prefix: key formats change, and a bad key is reported by the API anyway. */}
         <button
           className="btn-primary grow"
-          disabled={!key.trim().startsWith('sk-')}
+          disabled={key.trim().length < 20}
           onClick={() => {
             setApiKey(key);
             onSaved();
