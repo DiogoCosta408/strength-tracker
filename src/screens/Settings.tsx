@@ -37,7 +37,7 @@ function CloudSyncCard() {
     sync.status === 'syncing'
       ? 'Syncing…'
       : sync.status === 'reconnect'
-        ? 'Reconnect needed'
+        ? `Reconnect needed${sync.error ? `: ${sync.error}` : ''}`
         : sync.status === 'error'
           ? `Sync failed${sync.error ? `: ${sync.error}` : ''}`
           : sync.lastSyncedAt
@@ -58,7 +58,7 @@ function CloudSyncCard() {
       <div className="card">
         {sync.status === 'disconnected' ? (
           <>
-            <p className="small muted">Not connected.</p>
+            <p className={`small ${sync.error ? 'bad' : 'muted'}`}>{sync.error ?? 'Not connected.'}</p>
             <button className="btn-primary btn-block" disabled={busy} onClick={() => run(connectDrive)}>
               {busy ? 'Connecting…' : 'Connect Google Drive'}
             </button>
@@ -147,6 +147,7 @@ export function More() {
           <p className="small muted" style={{ marginTop: 4 }}>
             Keep the same log on your phone and computer, saved in a private folder of your own Google Drive. Only this app can read it.
           </p>
+          {sync.error && <p className="small bad" style={{ marginTop: 6 }}>{sync.error}</p>}
           <button
             className="btn-primary btn-block"
             style={{ marginTop: 10 }}

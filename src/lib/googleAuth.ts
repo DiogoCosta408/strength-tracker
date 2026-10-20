@@ -13,8 +13,12 @@
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const CONNECTED_KEY = 'gdrive-connected';
+// In localStorage, not sessionStorage: the round trip can come back in a different tab,
+// and a per-tab state would then read as a mismatch on a perfectly good sign-in.
 const STATE_KEY = 'gdrive-oauth-state';
 const RETURN_HASH_KEY = 'gdrive-oauth-return-hash';
+/** Set when a sign-in is sent off, cleared when one comes back — lets a lost round trip be detected. */
+const STARTED_KEY = 'gdrive-oauth-started';
 // Must match the literal key written by public/oauth-callback.html (a plain static file,
 // not built/typechecked, so it can't import this constant).
 const PENDING_TOKEN_KEY = 'gdrive-pending-token';
@@ -70,6 +74,15 @@ function writeToken(t: Token | undefined): void {
   }
 }
 
+let lastAuthError: string | undefined;
+
+/** Why the last sign-in round trip failed, if it did. Read once by the sync layer on start-up. */
+export function takeAuthError(): string | undefined {
+  const e = lastAuthError;
+  lastAuthError = undefined;
+  return e;
+}
+
 export function isConnected(): boolean {
   try {
     return localStorage.getItem(CONNECTED_KEY) === '1';
@@ -100,26 +113,56 @@ export function consumePendingToken(): void {
   } catch {
     return;
   }
-  if (!raw) return;
+  if (!raw) {
+    // A sign-in was started but nothing came back. On an installed iOS PWA the Google page
+    // can open in Safari instead, which has its own storage — so the token is written where
+    // this app can't see it. Say so rather than looking like a silent no-op.
+    let started = 0;
+    try {
+      started = Number(localStorage.getItem(STARTED_KEY) ?? 0);
+      if (started) localStorage.removeItem(STARTED_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (started && Date.now() - started < 10 * 60_000) {
+      lastAuthError = "Google sign-in didn't come back to the app. If you added this to your home screen, try connecting from the browser tab instead.";
+    }
+    return;
+  }
+  try {
+    localStorage.removeItem(STARTED_KEY);
+  } catch {
+    /* ignore */
+  }
   try {
     const { token, expiresAt, state, error } = JSON.parse(raw) as { token?: string; expiresAt?: number; state?: string; error?: string };
     let expectedState: string | null = null;
     try {
-      expectedState = sessionStorage.getItem(STATE_KEY);
-      sessionStorage.removeItem(STATE_KEY);
+      expectedState = localStorage.getItem(STATE_KEY);
+      localStorage.removeItem(STATE_KEY);
     } catch {
       /* ignore */
     }
-    if (!error && token && expiresAt && expectedState && state === expectedState) {
+    if (error) {
+      // access_denied is what Google returns when the account isn't on the Testing list.
+      lastAuthError =
+        error === 'access_denied'
+          ? 'Google refused access (access_denied). While this app is in Testing, only accounts added as testers can connect.'
+          : `Google refused the sign-in: ${error}`;
+    } else if (!token || !expiresAt) {
+      lastAuthError = 'Google returned no access token.';
+    } else if (!expectedState || state !== expectedState) {
+      lastAuthError = "The sign-in didn't match the request it started from. Try connecting again.";
+    } else {
       writeToken({ token, expiresAt });
       setConnected(true);
     }
   } catch {
-    /* malformed payload — ignore, stay disconnected */
+    lastAuthError = 'The sign-in response could not be read. Try connecting again.';
   }
   try {
-    const returnHash = sessionStorage.getItem(RETURN_HASH_KEY);
-    sessionStorage.removeItem(RETURN_HASH_KEY);
+    const returnHash = localStorage.getItem(RETURN_HASH_KEY);
+    localStorage.removeItem(RETURN_HASH_KEY);
     if (returnHash) location.hash = returnHash;
   } catch {
     /* ignore */
@@ -130,10 +173,15 @@ export function consumePendingToken(): void {
 export function connect(): void {
   const state = `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
   try {
-    sessionStorage.setItem(STATE_KEY, state);
-    sessionStorage.setItem(RETURN_HASH_KEY, location.hash);
+    localStorage.setItem(STATE_KEY, state);
+    localStorage.setItem(RETURN_HASH_KEY, location.hash);
   } catch {
     /* ignore */
+  }
+  try {
+    localStorage.setItem(STARTED_KEY, String(Date.now()));
+  } catch {
+    /* storage unavailable */
   }
   const url = new URL(AUTH_ENDPOINT);
   url.searchParams.set('client_id', clientId());

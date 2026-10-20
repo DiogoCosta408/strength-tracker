@@ -90,8 +90,10 @@ function friendlyError(status: number, body: string): string {
     }
   })();
   if (status === 400 && /API key not valid/i.test(detail)) return 'That API key was rejected. Check it in Coach → AI settings.';
-  if (status === 401 || status === 403) return 'The API key was rejected or lacks access. Check it in Coach → AI settings.';
-  if (status === 404) return 'That model is not available to this key. Clearing and re-entering the key will pick another.';
+  // Google's own text says which of these it is (key invalid, API not enabled for the
+  // project, referrer-restricted key…), so pass it through rather than guessing.
+  if (status === 401 || status === 403) return detail ? `Google rejected the key: ${detail}` : 'The API key was rejected or lacks access. Check it in Coach → AI settings.';
+  if (status === 404) return detail ? `Model unavailable: ${detail}` : 'That model is not available to this key. Remove and re-enter the key to pick another.';
   if (status === 429) return 'Rate limited by the free tier. Wait a moment and try again.';
   if (status >= 500) return 'Google AI is having trouble right now. Try again shortly.';
   return detail ? `Gemini API error ${status}: ${detail}` : `Gemini API error ${status}`;

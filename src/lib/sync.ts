@@ -7,7 +7,7 @@ import { getState, isLoaded, onStateChange, replaceState } from './store';
 import { mergeAppState } from './merge';
 import * as defaultAuth from './googleAuth';
 import * as defaultDrive from './googleDrive';
-import { ReconnectRequiredError } from './googleAuth';
+import { ReconnectRequiredError, takeAuthError } from './googleAuth';
 import { nowISO, todayISO } from './util';
 
 export { ReconnectRequiredError };
@@ -179,8 +179,13 @@ let initialized = false;
 export function initSync(): void {
   if (initialized) return;
   initialized = true;
-  setSyncState({ status: authBackend.isConnected() ? 'idle' : 'disconnected', lastSyncedAt: readLastSyncedAt() });
-  if (authBackend.isConnected()) syncNow();
+  // Surface why a sign-in round trip failed, instead of quietly staying disconnected. The
+  // status stays 'disconnected' when it is one, so the UI still offers Connect — with the
+  // reason shown next to it.
+  const authError = takeAuthError();
+  const connected = authBackend.isConnected();
+  setSyncState({ status: connected ? (authError ? 'error' : 'idle') : 'disconnected', error: authError, lastSyncedAt: readLastSyncedAt() });
+  if (!authError && connected) syncNow();
 
   onStateChange(() => {
     if (applyingRemote || !authBackend.isConnected()) return;
