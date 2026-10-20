@@ -10,7 +10,8 @@ import { nextProgramDay, nextSessionDate } from '../lib/workout';
 import { StrengthMini, StrengthProgressChart, StrengthScoreCard } from './Strength';
 import { movingAverage } from './Body';
 import { buildInsights } from '../lib/coach';
-import { goalReport } from '../lib/goals';
+import { goalProgressPct, goalReport } from '../lib/goals';
+import { fmtRate, rateKg, rateToneClass } from './Goals';
 
 const WELCOME_DISMISSED_KEY = 'welcome-dismissed';
 
@@ -163,19 +164,36 @@ export function Dashboard() {
               {{ achieved: 'Achieved', 'on-track': 'On track', ambitious: 'Ambitious', unrealistic: 'Not realistic', 'no-data': 'Needs data' }[goal.overall]}
             </span>
           </div>
-          {goal.lifts.map((l) => (
-            <div key={l.exerciseId} className="row between small num" style={{ marginTop: 4 }}>
-              <span className="grow">{l.name.replace(/\s*\(.*\)/, '')}</span>
-              <span>
-                {fmtKg(l.current)} / <b>{fmtKg(l.target)}</b>
-              </span>
-            </div>
-          ))}
+          {goal.lifts.map((l) => {
+            const done = goalProgressPct(l.start, l.current, l.target);
+            const needed = Number.isFinite(l.requiredPct) ? rateKg(l.requiredPct, l.current) : undefined;
+            const actual = l.observedPct !== undefined ? rateKg(l.observedPct, l.current) : undefined;
+            return (
+              <div key={l.exerciseId} style={{ marginTop: 8 }}>
+                <div className="row between small num">
+                  <span className="grow ellipsis">{l.name.replace(/\s*\(.*\)/, '')}</span>
+                  <span>
+                    {fmtKg(l.current)} / <b>{fmtKg(l.target)}</b> kg
+                  </span>
+                </div>
+                <div className="level-bar" style={{ height: 5, marginTop: 3 }}>
+                  <div style={{ width: `${done}%`, background: 'var(--accent)' }} />
+                </div>
+                <div className="row between tiny muted num" style={{ marginTop: 2 }}>
+                  <span>{Math.round(done)}%</span>
+                  <span>
+                    needs {needed !== undefined ? fmtRate(needed) : '—'} · now{' '}
+                    <span className={rateToneClass(actual, needed)}>{actual !== undefined ? fmtRate(actual) : '—'}</span> /wk
+                  </span>
+                </div>
+              </div>
+            );
+          })}
           {goal.bodyweight && (
             <div className="row between small num" style={{ marginTop: 4 }}>
               <span className="grow">Bodyweight</span>
               <span>
-                {fmtKg(goal.bodyweight.current)} / <b>{fmtKg(goal.bodyweight.target)}</b>
+                {fmtKg(goal.bodyweight.current)} / <b>{fmtKg(goal.bodyweight.target)}</b> kg
               </span>
             </div>
           )}

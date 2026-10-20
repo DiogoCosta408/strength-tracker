@@ -209,17 +209,22 @@ function Progress({ start, current, target, unit }: { start: number; current: nu
 }
 
 /** Weekly rate in kg, from a %/week of the current load. */
-const rateKg = (pctPerWeek: number, current: number) => (pctPerWeek / 100) * current;
-const fmtRate = (kg: number) => `${kg >= 0 ? '+' : '−'}${fmtKg(Math.abs(kg))} kg`;
+export const rateKg = (pctPerWeek: number, current: number) => (pctPerWeek / 100) * current;
+export const fmtRate = (kg: number) => `${kg >= 0 ? '+' : '−'}${fmtKg(Math.abs(kg))} kg`;
+
+/** Green on pace, red only when going backwards — behind-but-positive is still progress. */
+export function rateToneClass(actual: number | undefined, needed: number | undefined): string {
+  if (actual === undefined) return '';
+  if (actual < 0) return 'bad';
+  return needed !== undefined && actual >= needed ? 'good' : '';
+}
 
 /** Progress, the rate the goal needs, and the rate actually being hit — all in kg/week. */
 function GoalRates({ l }: { l: LiftGoalStatus }) {
   const done = goalProgressPct(l.start, l.current, l.target);
   const needed = Number.isFinite(l.requiredPct) ? rateKg(l.requiredPct, l.current) : undefined;
   const actual = l.observedPct !== undefined ? rateKg(l.observedPct, l.current) : undefined;
-  // Green when on pace, red only when actually losing ground — a positive rate that's merely
-  // behind the target is still progress and shouldn't be coloured like a failure.
-  const rateClass = actual === undefined ? '' : actual < 0 ? 'bad' : needed !== undefined && actual >= needed ? 'good' : '';
+  const rateClass = rateToneClass(actual, needed);
   return (
     <div className="grid3" style={{ marginTop: 10 }}>
       <div className="stat">
