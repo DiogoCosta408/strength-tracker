@@ -37,7 +37,7 @@ const fmtShortDate = (t: number) => new Date(t).toLocaleDateString(undefined, { 
  * Time-series line chart. `points` is the main series (dots + line unless `trend`
  * is given, in which case points are shown as faint dots and `trend` is the line).
  */
-export function LineChart({ points, trend, unit = 'kg', height = H }: { points: Point[]; trend?: Point[]; unit?: string; height?: number }) {
+export function LineChart({ points, trend, unit = 'kg', height = H, color = 'var(--accent)' }: { points: Point[]; trend?: Point[]; unit?: string; height?: number; color?: string }) {
   const ref = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const h = height;
@@ -103,13 +103,13 @@ export function LineChart({ points, trend, unit = 'kg', height = H }: { points: 
           </text>
         ))}
         {trend &&
-          points.map((p, i) => <circle key={i} cx={sx(p.x)} cy={sy(p.y)} r={2.5} fill="var(--accent)" opacity={0.35} />)}
-        <path d={line(main)} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        {!trend && points.length < 40 && points.map((p, i) => <circle key={i} cx={sx(p.x)} cy={sy(p.y)} r={3} fill="var(--accent)" stroke="var(--surface)" strokeWidth={1.5} />)}
+          points.map((p, i) => <circle key={i} cx={sx(p.x)} cy={sy(p.y)} r={2.5} fill={color} opacity={0.35} />)}
+        <path d={line(main)} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        {!trend && points.length < 40 && points.map((p, i) => <circle key={i} cx={sx(p.x)} cy={sy(p.y)} r={3} fill={color} stroke="var(--surface)" strokeWidth={1.5} />)}
         {hp && (
           <g>
             <line x1={sx(hp.x)} x2={sx(hp.x)} y1={PAD.t} y2={h - PAD.b} stroke="var(--muted)" strokeDasharray="3 3" />
-            <circle cx={sx(hp.x)} cy={sy(hp.y)} r={4.5} fill="var(--accent)" stroke="var(--surface)" strokeWidth={2} />
+            <circle cx={sx(hp.x)} cy={sy(hp.y)} r={4.5} fill={color} stroke="var(--surface)" strokeWidth={2} />
           </g>
         )}
       </svg>
@@ -194,7 +194,7 @@ export function BarChart({ bars, unit = '', height = 150 }: { bars: Bar[]; unit?
 }
 
 /** Tiny inline trend line for stat tiles. */
-export function Sparkline({ values, width = 80, height = 24 }: { values: number[]; width?: number; height?: number }) {
+export function Sparkline({ values, width = 80, height = 24, color = 'var(--accent)' }: { values: number[]; width?: number; height?: number; color?: string }) {
   if (values.length < 2) return null;
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -203,7 +203,102 @@ export function Sparkline({ values, width = 80, height = 24 }: { values: number[
     .join('');
   return (
     <svg width={width} height={height} aria-hidden="true">
-      <path d={d} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+export interface Series {
+  key: string;
+  label: string;
+  color: string;
+  points: Point[];
+}
+
+/**
+ * Several time series on one shared axis, for comparing lifts at a glance. Hovering snaps a
+ * crosshair to the nearest point of each series, since lifts are rarely logged on the same days.
+ */
+export function MultiLineChart({ series, unit = 'kg', height = H }: { series: Series[]; unit?: string; height?: number }) {
+  const ref = useRef<SVGSVGElement>(null);
+  const [hoverX, setHoverX] = useState<number | null>(null);
+  const h = height;
+  const shown = series.filter((s) => s.points.length);
+
+  const geo = useMemo(() => {
+    const all = shown.flatMap((s) => s.points);
+    if (!all.length) return null;
+    let x0 = Math.min(...all.map((p) => p.x));
+    let x1 = Math.max(...all.map((p) => p.x));
+    if (x0 === x1) {
+      x0 -= 86400000 * 3;
+      x1 += 86400000 * 3;
+    }
+    const ys = all.map((p) => p.y);
+    const pad = (Math.max(...ys) - Math.min(...ys)) * 0.08 || 2;
+    const ticks = niceTicks(Math.min(...ys) - pad, Math.max(...ys) + pad);
+    const y0 = ticks[0];
+    const y1 = ticks[ticks.length - 1];
+    return {
+      ticks,
+      x0,
+      x1,
+      sx: (x: number) => PAD.l + ((x - x0) / (x1 - x0)) * (W - PAD.l - PAD.r),
+      sy: (y: number) => h - PAD.b - ((y - y0) / (y1 - y0 || 1)) * (h - PAD.t - PAD.b),
+    };
+  }, [shown, h]);
+
+  if (!geo) return <div className="empty small">No data yet</div>;
+  const { sx, sy, ticks, x0, x1 } = geo;
+  const line = (pts: Point[]) => pts.map((p, i) => `${i ? 'L' : 'M'}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join('');
+
+  const onMove = (e: React.PointerEvent) => {
+    const r = ref.current!.getBoundingClientRect();
+    setHoverX(((e.clientX - r.left) / r.width) * W);
+  };
+  const nearest = (pts: Point[]) => pts.reduce((best, p) => (Math.abs(sx(p.x) - hoverX!) < Math.abs(sx(best.x) - hoverX!) ? p : best), pts[0]);
+  const marks = hoverX === null ? [] : shown.map((s) => ({ s, p: nearest(s.points) }));
+  const xTicks = [x0, x0 + (x1 - x0) / 2, x1];
+
+  return (
+    <div className="chart-wrap">
+      <svg ref={ref} className="chart" viewBox={`0 0 ${W} ${h}`} onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHoverX(null)} role="img" aria-label="Line chart">
+        <g className="grid">
+          {ticks.map((t) => (
+            <line key={t} x1={PAD.l} x2={W - PAD.r} y1={sy(t)} y2={sy(t)} />
+          ))}
+        </g>
+        {ticks.map((t) => (
+          <text key={t} x={PAD.l - 6} y={sy(t) + 3} textAnchor="end">
+            {t}
+          </text>
+        ))}
+        {xTicks.map((t, i) => (
+          <text key={i} x={sx(t)} y={h - 6} textAnchor={i === 0 ? 'start' : i === 2 ? 'end' : 'middle'}>
+            {fmtShortDate(t)}
+          </text>
+        ))}
+        {shown.map((s) => (
+          <path key={s.key} d={line(s.points)} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+        ))}
+        {hoverX !== null && marks.length > 0 && (
+          <g>
+            <line x1={hoverX} x2={hoverX} y1={PAD.t} y2={h - PAD.b} stroke="var(--muted)" strokeDasharray="3 3" />
+            {marks.map(({ s, p }) => (
+              <circle key={s.key} cx={sx(p.x)} cy={sy(p.y)} r={4} fill={s.color} stroke="var(--surface)" strokeWidth={1.5} />
+            ))}
+          </g>
+        )}
+      </svg>
+      {marks.length > 0 && (
+        <div className="tooltip" style={{ left: `${(Math.min(Math.max(hoverX!, 70), W - 60) / W) * 100}%`, top: 0, marginTop: -4 }}>
+          {marks.map(({ s, p }) => (
+            <div key={s.key}>
+              <span style={{ color: s.color }}>●</span> {s.label} <b>{Math.round(p.y * 10) / 10}</b> {unit}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

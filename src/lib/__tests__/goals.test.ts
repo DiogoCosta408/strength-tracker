@@ -120,3 +120,32 @@ describe('goalProgressPct', () => {
     expect(goalProgressPct(90, 85, 80)).toBe(50);
   });
 });
+
+describe('goal start for a lift that was never logged', () => {
+  const goal = (createdDaysAgo: number) => ({
+    targetDate: ymd(-56),
+    lifts: [{ exerciseId: 'squat', target: 200 }],
+    createdAt: iso(createdDaysAgo),
+    start: { lifts: { squat: 0 } }, // never logged when the goal was set
+  });
+
+  it('does not count an unlogged lift as most of the way there', () => {
+    // Goal set 30 days ago with no squat history; first session logged 20 days ago at ~140.
+    const s = base({ workouts: squatSessions(() => 140, 3), goals: goal(30) });
+    const l = goalReport(s, NOW)!.lifts[0];
+    expect(l.start).toBeGreaterThan(100); // anchored on the first logged session, not 0
+    expect(goalProgressPct(l.start, l.current, l.target)).toBeLessThan(20);
+  });
+
+  it('keeps a real recorded start when there was one', () => {
+    const g = { ...goal(30), start: { lifts: { squat: 150 } } };
+    const s = base({ workouts: squatSessions(() => 170, 3), goals: g });
+    expect(goalReport(s, NOW)!.lifts[0].start).toBe(150);
+  });
+
+  it('falls back to current when nothing has been logged since the goal was set', () => {
+    const s = base({ workouts: [], goals: goal(30) });
+    const l = goalReport(s, NOW)!.lifts[0];
+    expect(l.start).toBe(l.current);
+  });
+});

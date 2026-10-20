@@ -102,8 +102,11 @@ export function StrengthScoreCard({ max = 5, onClick }: { max?: number; onClick?
       </div>
       <div style={{ marginTop: 10 }}>
         {bars.map((x) => (
-          <div key={x.lift} className="row" style={{ alignItems: 'center', gap: 8, padding: '3px 0' }}>
-            <span className="small ellipsis" style={{ width: 96, flexShrink: 0 }}>{LIFT_LABELS[x.lift]}</span>
+          <div key={x.lift} className="row" style={{ alignItems: 'center', gap: 8, padding: '4px 0' }}>
+            <div style={{ width: 104, flexShrink: 0 }}>
+              <div className="small ellipsis">{LIFT_LABELS[x.lift]}</div>
+              <div className="tiny muted ellipsis">{levelFor(x.score)}</div>
+            </div>
             <div className="level-bar grow">
               <div style={{ width: `${Math.min(100, x.score)}%`, background: scoreColor(x.score) }} />
             </div>

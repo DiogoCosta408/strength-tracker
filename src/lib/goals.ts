@@ -150,10 +150,28 @@ function age(s: AppState): number | undefined {
   return s.profile.birthYear ? new Date().getFullYear() - s.profile.birthYear : undefined;
 }
 
+/** First e1RM logged on or after `since`. */
+function firstE1rmSince(s: AppState, exerciseId: string, since: string): number | undefined {
+  const first = exerciseHistory(s, exerciseId).find((p) => p.date >= since);
+  return first?.e1rm;
+}
+
+/**
+ * Where this goal started. A lift that had never been logged when the goal was set records a
+ * start of 0, which would then measure progress from an empty bar — logging it for the first
+ * time would read as most of the way there. In that case anchor on the first session logged
+ * after the goal was set instead, so progress starts from where the lifter actually was.
+ */
+function goalStart(s: AppState, g: Goals, exerciseId: string, current: number): number {
+  const recorded = g.start.lifts[exerciseId];
+  if (recorded && recorded > 0) return recorded;
+  return firstE1rmSince(s, exerciseId, g.createdAt) ?? current;
+}
+
 function liftStatus(s: AppState, g: Goals, exerciseId: string, target: number, weeksLeft: number, bw: number, bwPlanPct: number, now: number): LiftGoalStatus {
   const ex = getExercise(exerciseId, s);
   const current = bestE1rm(s, exerciseId, 42) || bestE1rm(s, exerciseId);
-  const start = g.start.lifts[exerciseId] ?? current;
+  const start = goalStart(s, g, exerciseId, current);
   const std = ex?.standard ?? STANDARD_OF[exerciseId];
   const sex: Sex = s.profile.sex;
 

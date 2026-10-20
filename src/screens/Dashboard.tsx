@@ -3,7 +3,7 @@ import { dots, fmtKg } from '../lib/calc';
 import { bodyweightAt, getExercise, useAppState } from '../lib/store';
 import { bestE1rm, exerciseHistory, finishedWorkouts, trainingStreakWeeks, weeklyStats, workoutPRs } from '../lib/stats';
 import { fmtDate, weekKey } from '../lib/util';
-import { BarChart, LineChart, Sparkline } from '../components/Charts';
+import { BarChart, LineChart, MultiLineChart, Sparkline } from '../components/Charts';
 import { go, Help, Icon, Segmented, Stat } from '../components/ui';
 import { flattenDays } from '../data/programs';
 import { nextProgramDay, nextSessionDate } from '../lib/workout';
@@ -26,10 +26,10 @@ function dayLabel(date: Date): string {
 }
 
 const MAIN_LIFTS = [
-  { id: 'squat', label: 'Squat' },
-  { id: 'bench-press', label: 'Bench' },
-  { id: 'deadlift', label: 'Deadlift' },
-  { id: 'press', label: 'Press' },
+  { id: 'squat', label: 'Squat', color: '#e0803a' },
+  { id: 'bench-press', label: 'Bench', color: '#3c8ce6' },
+  { id: 'deadlift', label: 'Deadlift', color: '#46b964' },
+  { id: 'press', label: 'Press', color: '#a87fe0' },
 ];
 
 export function Dashboard() {
@@ -41,7 +41,7 @@ export function Dashboard() {
       return false;
     }
   });
-  const [lift, setLift] = useState('squat');
+  const [lift, setLift] = useState<string | null>(null); // null = all four overlaid
   const [volMetric, setVolMetric] = useState<'tonnage' | 'hardSets'>('tonnage');
   const workouts = finishedWorkouts(s);
   const bw = bodyweightAt(s);
@@ -79,7 +79,7 @@ export function Dashboard() {
     return out.slice(0, 6);
   }, [s]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const sel = lifts.find((l) => l.id === lift)!;
+  const sel = lifts.find((l) => l.id === lift);
   const goal = useMemo(() => goalReport(s), [s]);
   const coachNote = useMemo(() => buildInsights(s).find((i) => i.severity !== 'info') ?? null, [s]);
   const bwSorted = [...s.bodyweight].sort((a, b) => a.date.localeCompare(b.date));
@@ -235,12 +235,12 @@ export function Dashboard() {
       <h2>Main lifts</h2>
       <div className="grid2">
         {lifts.map((l) => (
-          <button key={l.id} className="stat" style={{ textAlign: 'left', display: 'block', minHeight: 0 }} onClick={() => setLift(l.id)} aria-pressed={lift === l.id}>
+          <button key={l.id} className="stat" style={{ textAlign: 'left', display: 'block', minHeight: 0 }} onClick={() => setLift(lift === l.id ? null : l.id)} aria-pressed={lift === l.id}>
             <div className="row between">
               <span className="label">{l.label}</span>
-              <Sparkline values={l.hist.slice(-12).map((p) => p.e1rm)} width={60} height={20} />
+              <Sparkline values={l.hist.slice(-12).map((p) => p.e1rm)} width={60} height={20} color={l.color} />
             </div>
-            <div className="value" style={{ color: lift === l.id ? 'var(--accent)' : undefined }}>
+            <div className="value" style={{ color: lift === l.id ? l.color : undefined }}>
               {l.best ? fmtKg(l.best) : '–'}
             </div>
             <div className="sub">{l.delta !== undefined ? <span className={l.delta >= 0 ? 'good' : 'bad'}>{l.delta >= 0 ? '+' : ''}{fmtKg(l.delta)} kg vs 3 mo ago</span> : 'e1RM kg'}</div>
@@ -250,14 +250,35 @@ export function Dashboard() {
 
       <div className="card">
         <div className="row between">
-          <h3 style={{ margin: 0 }}>{sel.label} e1RM</h3>
-          <button className="btn-sm btn-ghost" onClick={() => go(`/exercise/${sel.id}`)}>
-            Details ›
-          </button>
+          <h3 style={{ margin: 0 }}>{sel ? `${sel.label} e1RM` : 'e1RM trend'}</h3>
+          {sel ? (
+            <button className="btn-sm btn-ghost" onClick={() => go(`/exercise/${sel.id}`)}>
+              Details ›
+            </button>
+          ) : (
+            <span className="tiny muted">tap a lift above to focus</span>
+          )}
         </div>
-        <LineChart
-          points={sel.hist.map((p) => ({ x: new Date(p.date).getTime(), y: p.e1rm, label: `${fmtKg(p.topWeight)}×${p.topReps}${p.topRpe ? ` @${p.topRpe}` : ''}` }))}
-        />
+        {sel ? (
+          <LineChart
+            color={sel.color}
+            points={sel.hist.map((p) => ({ x: new Date(p.date).getTime(), y: p.e1rm, label: `${fmtKg(p.topWeight)}×${p.topReps}${p.topRpe ? ` @${p.topRpe}` : ''}` }))}
+          />
+        ) : (
+          <>
+            <MultiLineChart series={lifts.map((l) => ({ key: l.id, label: l.label, color: l.color, points: l.hist.map((p) => ({ x: new Date(p.date).getTime(), y: p.e1rm })) }))} />
+            <div className="row wrap" style={{ gap: '4px 12px', justifyContent: 'center', marginTop: 6 }}>
+              {lifts
+                .filter((l) => l.hist.length)
+                .map((l) => (
+                  <span key={l.id} className="tiny muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ width: 9, height: 9, borderRadius: '50%', background: l.color, display: 'inline-block', flexShrink: 0 }} />
+                    {l.label}
+                  </span>
+                ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="card">
