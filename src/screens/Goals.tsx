@@ -47,6 +47,7 @@ export function GoalsPanel({ onAsk }: { onAsk: (text: string) => void }) {
               Target date
               <Help title="How goals are checked">
                 <p>Each goal is projected week by week. Typical progress slows as you get stronger: ~1%/week for novices, ~0.45% intermediate, ~0.2% advanced, much less in a calorie deficit. Your own trend from the last 12 weeks is blended in.</p>
+                <p>Age counts too, in two ways: the standards are age-graded (so the same bar is a higher score at 50 than at 25), and the projected rate of gain tapers after ~30 as recovery slows. Set your birth year below or in Settings — without it the projection assumes a lifter in their prime.</p>
                 <p>On track: the projection reaches the target in time. Ambitious: needs up to ~1.6× the typical rate. Not realistic: more than that. You can apply the suggested target or date with one tap.</p>
                 <p>Calories come from an estimate (height, age, activity) until you've logged ~10 days of intake. Then your real maintenance is used and the plan adapts as your weight trend changes.</p>
               </Help>

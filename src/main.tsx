@@ -27,8 +27,10 @@ async function bootstrapSync() {
   initSync();
 }
 
-loadState();
-bootstrapSync();
+// Sync only after local data is back from IndexedDB: the first sync merges local with the
+// remote backup, and starting it against a not-yet-loaded (empty) state would upload an
+// empty backup over good data.
+loadState().then(bootstrapSync);
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     {/* Above App, so even a crash in App's own render/effects shows a message instead of a blank page. */}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AppState, Workout } from '../../types';
 import { DEFAULT_STATE } from '../store';
-import { estimatedMaintenance, goalReport, levelRate, macroPlan } from '../goals';
+import { ageRateFactor, estimatedMaintenance, goalReport, levelRate, macroPlan } from '../goals';
 
 const NOW = Date.now();
 const DAY = 86400000;
@@ -71,5 +71,30 @@ describe('nutrition', () => {
     expect(m.maintenanceSource).toBe('logged');
     expect(Math.abs(m.maintenance - 3100)).toBeLessThan(60);
     expect(m.protein * 4 + m.carbs * 4 + m.fat * 9).toBeGreaterThan(m.calories - 20);
+  });
+});
+
+describe('age in projections', () => {
+  it('peaks in the 20s and tapers after 30', () => {
+    expect(ageRateFactor(25)).toBe(1);
+    expect(ageRateFactor(30)).toBe(1);
+    expect(ageRateFactor(45)).toBeLessThan(ageRateFactor(30));
+    expect(ageRateFactor(60)).toBeLessThan(ageRateFactor(45));
+  });
+
+  it('assumes a lifter in their prime when birth year is unknown', () => {
+    expect(ageRateFactor(undefined)).toBe(1);
+  });
+
+  it('never taper below a third of peak, however old', () => {
+    expect(ageRateFactor(95)).toBeGreaterThanOrEqual(0.35);
+  });
+
+  it('projects a slower, less feasible climb for a masters lifter than a 25-year-old', () => {
+    const goals = { targetDate: ymd(-84), lifts: [{ exerciseId: 'squat', target: 200 }], createdAt: iso(0), start: { lifts: { squat: 160 } } };
+    const workouts = squatSessions((d) => 160 - d * 0.05);
+    const young = goalReport(base({ workouts, goals, profile: { ...DEFAULT_STATE.profile, sex: 'male', heightCm: 180, birthYear: new Date().getFullYear() - 25 } }), NOW)!;
+    const masters = goalReport(base({ workouts, goals, profile: { ...DEFAULT_STATE.profile, sex: 'male', heightCm: 180, birthYear: new Date().getFullYear() - 60 } }), NOW)!;
+    expect(masters.lifts[0].projectedAtDate).toBeLessThan(young.lifts[0].projectedAtDate);
   });
 });

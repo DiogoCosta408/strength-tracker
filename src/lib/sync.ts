@@ -3,7 +3,7 @@
 // edits (debounced), app open, foreground, and reconnecting to the network.
 import { useSyncExternalStore } from 'react';
 import type { AppState } from '../types';
-import { getState, onStateChange, replaceState } from './store';
+import { getState, isLoaded, onStateChange, replaceState } from './store';
 import { mergeAppState } from './merge';
 import * as defaultAuth from './googleAuth';
 import * as defaultDrive from './googleDrive';
@@ -87,6 +87,10 @@ async function writeSnapshotAndPrune(token: string, payload: string): Promise<vo
 
 export async function syncNow(): Promise<void> {
   if (syncing) return;
+  // Local data is loaded from IndexedDB asynchronously. Syncing before that lands would merge
+  // against an empty state — uploading an empty backup over good data, or pulling the remote
+  // in only for loadState() to overwrite it a moment later.
+  if (!isLoaded()) return;
   if (!authBackend.isConnected()) {
     setSyncState({ status: 'disconnected' });
     return;

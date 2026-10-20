@@ -146,6 +146,11 @@ export function useLoaded(): boolean {
   return useSyncExternalStore(subscribe, () => loaded);
 }
 
+/** Whether loadState() has finished. Anything that reads state outside React must check this. */
+export function isLoaded(): boolean {
+  return loaded;
+}
+
 // ---------------------------------------------------------------------------
 // Lookups
 

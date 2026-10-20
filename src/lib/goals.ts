@@ -92,6 +92,22 @@ export function levelRate(score: number): number {
   return 0.05;
 }
 
+/**
+ * How much of a young lifter's rate of gain to expect at a given age. Trainability peaks
+ * into the late 20s and tapers after ~30 as recovery slows; teens still growing gain a bit
+ * quicker. Approximate, and deliberately gentler than the literature's spread so a masters
+ * lifter's goals aren't written off.
+ *
+ * Separate from strength.ts's ageFactor, which age-grades the standards (what counts as
+ * strong *for your age*) rather than how fast you can add to the bar.
+ */
+export function ageRateFactor(age?: number): number {
+  if (!age) return 1;
+  if (age < 18) return 1.1;
+  if (age <= 30) return 1;
+  return Math.max(0.35, 1 - (age - 30) * 0.012);
+}
+
 /** Bodyweight-change effect on strength progress (%/week of bodyweight). */
 function dietFactor(bwPctPerWeek: number): number {
   if (bwPctPerWeek <= -0.75) return 0.15; // aggressive cut: hold strength at best
@@ -132,9 +148,10 @@ function liftStatus(s: AppState, g: Goals, exerciseId: string, target: number, w
 
   // Week-by-week simulation: the rate shrinks as the lifter gets stronger.
   const df = dietFactor(bwPlanPct);
+  const af = ageRateFactor(age(s));
   const rateAt = (e1: number) => {
     const base = std ? levelRate(liftScore(std, e1, bw, sex, age(s))) : 0.4;
-    let r = base * df;
+    let r = base * df * af;
     // Blend with the lifter's own trend, but don't let a hot or cold streak dominate.
     if (observedPct !== undefined) r = Math.min(r * 1.5, Math.max(r * 0.5, (r + observedPct) / 2));
     return r;

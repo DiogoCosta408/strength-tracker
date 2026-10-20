@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppState, Workout } from '../../types';
-import { DEFAULT_STATE, getState, replaceState } from '../store';
+import { DEFAULT_STATE, getState, loadState, replaceState } from '../store';
 
 vi.mock('../googleAuth', async () => {
   const actual = await vi.importActual<typeof import('../googleAuth')>('../googleAuth');
@@ -34,8 +34,16 @@ function workout(id: string, updatedAt: string): Workout {
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 describe('sync', () => {
+  it('does nothing until local data has loaded (syncing first would merge against an empty state)', async () => {
+    vi.mocked(auth.isConnected).mockReturnValue(true);
+    await syncNow();
+    expect(drive.findFile).not.toHaveBeenCalled();
+    await loadState(); // every later test runs with the store loaded, as the app does
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(auth.isConnected).mockReturnValue(false); // each test opts in to being connected
     replaceState({ ...DEFAULT_STATE, workouts: [] });
     disconnectDrive(); // reset status to 'disconnected' between tests
     vi.clearAllMocks(); // disconnectDrive itself calls auth.disconnect(); don't count it
