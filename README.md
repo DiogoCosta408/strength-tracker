@@ -1,125 +1,226 @@
+<div align="center">
+
 # Strength Tracker
+
+**A training log that actually coaches you.**
+
+RPE autoregulation, estimated 1RMs, strength standards on an anatomical muscle map, goal projections, and an AI coach that reads your last six weeks before it opens its mouth.
 
 [![Try it live](https://img.shields.io/badge/Try%20it%20live-strength--tracker-22c55e?style=for-the-badge)](https://diogocosta408.github.io/strength-tracker/)
 
-A mobile-first strength training log for powerlifters and barbell athletes. It runs as an installable PWA (add to home screen on iOS/Android), works offline, and keeps all data on the device.
+Installable PWA · works offline · your data stays on your device
 
-## Features
+<img src="screenshots/dashboard.png" width="240" alt="Dashboard"> <img src="screenshots/logger.png" width="240" alt="Workout logger"> <img src="screenshots/strength.png" width="240" alt="Strength profile">
 
-- **Workout logger**: sets × kg × reps × RPE, with set types (warm-up, work, top set, back-off, AMRAP). Tick a set to accept the prescription, and the rest timer starts with vibration and a beep. Each exercise shows last session's numbers, best e1RM, a live e1RM per set, plate loading per side and a one-tap warm-up ramp. Workouts can be reordered, exercises replaced, notes added, and a session repeated.
-- **Autoregulation**: a prescription can be:
-  - `reps @ RPE`: the load comes from your recent (6-week) e1RM via the RTS RPE chart.
-  - `% of e1RM`
-  - fixed kg
-  - `% of today's top set`, for load-drop back-offs
-  - linear progression (`+kg` after a successful session; repeat the load after a miss)
-- **In-session autoregulation**: once you log a set with an RPE, the remaining app-suggested sets re-calculate from today's e1RM. If 5 @ RPE 7 felt like RPE 8, the next jumps get smaller. After a top set that overshoots its target RPE, back-off sets are based on the weight that would have hit the target. Weights you type yourself are never changed.
-- **Programs / templates**: built-in templates are Starting Strength, RPE Novice (Barbell Medicine style), GZCLP, Texas Method, 5/3/1 BBB, a 4+1 RPE powerlifting block and a meet peak. You can copy and customize any of them or build your own (weeks → days → exercises → sets). Follow a program and the app queues the next session.
-- **Import / export programs**: share templates as `.program.json` files. `scripts/bbm_template_to_program.py` converts a Barbell Medicine weekly template spreadsheet (RPE ramps, load drops, repeats, %e1RM work, GPP) into one.
-- **Exercise library**: 225 exercises with competition-lift variations (pause / pin / tempo / SSB / deficit / block / Larsen / Spoto / board…), muscles and equipment. You can add your own.
-- **Calculators**:
-  - 1RM (7 formulas plus the RPE chart, with a rep-max table)
-  - RPE load calculator, back-off from today's top set, and the full RPE chart
-  - IPF GL, DOTS, Wilks and Wilks 2020
-  - plate calculator
-  - meet attempt selector
-- **Dashboard**: SBD total and DOTS, the main lifts with 3-month change, an e1RM trend chart, weekly tonnage / hard sets, streak and recent PRs.
-- **Strength profile**: an anatomical front/back muscle map coloured by strength level, similar to symmetricstrength.com. It also shows per-lift standards (sex- and age-adjusted), kg needed for the next level, imbalance detection, and manual maxes for meet results.
-- **Coach**:
-  - **Insights** (offline, automatic): for squat, bench, deadlift and press it detects progressing, stalled and regressing lifts (e1RM trend over 6 weeks, weeks since PR). Likely causes it checks for: RPE drift at the same loads (fatigue), low frequency, low or high weekly volume, too little or too much heavy work, no variations, a finished linear progression, a drop in training frequency, a falling bodyweight, and lifts that lag behind the others. Each finding comes with concrete actions.
-  - **Diagnose** (offline): a short interview per lift covering where it fails (e.g. off the chest / mid-range / lockout), what breaks down technically, how heavy reps feel, plus sleep, diet phase and stress. It answers with targeted variations and accessories (sets × reps @ RPE, addable to your program in one tap), technique cues and programming changes.
-  - **Ask coach** (AI): a chat with a Gemini-powered strength coach. It reads a summary of your last 6 weeks, the lift analysis and your diagnostic answers, asks follow-up questions before prescribing, then gives a plan. It needs your own Google AI Studio API key (free tier), which is stored on the device only.
-- **Goals**: target lifts (kg or a strength level), target bodyweight and a date. The coach projects each lift week by week (progress slows as you get stronger and in a calorie deficit, blended with your own trend). It rates each goal on track, ambitious or not realistic, offers an adjusted target or date, and warns about conflicts such as cutting while chasing PRs.
-- **Nutrition**: calorie and macro targets for the goal. They start from an estimate (Mifflin-St Jeor × activity); once ~10 days of intake are logged, maintenance is worked out from your intake and weight trend, and calories are adjusted when weight drifts off plan.
-- **Bodyweight tracker** with a 7-day moving average and optional daily calories / protein.
-- **Share best lifts**: pick which lifts to share. It builds a PNG card (optional total, DOTS/Wilks and muscle map) and opens the native share sheet, or copies the lifts as text.
-- **Data**:
-  - **Cloud sync**: automatic backup and merge across devices via your own Google Drive (Settings → Cloud sync). See setup below.
-  - export/import a JSON backup, either as a file or as copied text
-  - CSV export of all sets
-  - demo data, for trying the app out
+</div>
 
-## Run locally
+---
+
+## Why this exists
+
+Most logs are a spreadsheet with a timer. This one does the thinking that usually happens on paper between sets: what weight to take today given how last week felt, whether you're actually getting stronger or just busier, which lift is holding your total back, and whether the goal you wrote down in January is still real.
+
+---
+
+## The interesting parts
+
+### Autoregulation that reacts mid-session
+
+Prescribe a set as `5 @ RPE 8` and the weight comes from your recent e1RM via the RTS RPE chart. Log the set and **the remaining sets re-calculate from today's e1RM** — if 5 @ RPE 7 felt like an 8, the next jumps shrink automatically. Overshoot a top set and the back-offs are computed from the weight that *would* have hit the target, not the one you ground out.
+
+Weights you typed yourself are never touched.
+
+Prescriptions can be `reps @ RPE`, `% of e1RM`, fixed kg, `% of today's top set` (load drops), or linear progression (`+2.5 kg` after a success, repeat after a miss).
+
+### A strength profile you can read at a glance
+
+<img src="screenshots/strength.png" width="300" align="right" alt="Muscle map and strength score">
+
+Every lift is scored against **[Symmetric Strength](https://symmetricstrength.com/standards)'s published standards**, adjusted for sex and age, across eight levels from Untrained to World class. Those scores spread over an anatomical front/back muscle map, so weak links show up as a colour rather than a spreadsheet column.
+
+- **Strength score** plus a **balance %** — how even your lifts are relative to each other
+- Per-lift bars with level and points, and the kg needed for the next level
+- **Imbalance detection**: lifts more than 10 points behind your average, with the weight that would close the gap
+- Tap any muscle to see which lifts feed its score
+- A score trend chart: your overall score recalculated week by week from the e1RMs logged up to each point
+
+<br clear="right">
+
+### Goals that tell you the truth
+
+<img src="screenshots/goals.png" width="300" align="left" alt="Goal projections">
+
+Set target lifts (by kg or by strength level), a target bodyweight and a date. Each goal is **projected week by week** — progress naturally slows as you get stronger, slows further in a calorie deficit, and tapers with age, all blended with your own 12-week trend.
+
+Each lift shows **progress %, the gain per week the target needs, and the rate you're actually hitting**, in kg. Goals are rated on track / ambitious / not realistic, and when one isn't realistic the app offers an achievable target *or* a moved date — one tap to apply either.
+
+It also flags conflicts, like chasing PRs while cutting hard, and turns the goal into a daily calorie and macro target.
+
+<br clear="left">
+
+### An AI coach that reads the data first
+
+<img src="screenshots/coach.png" width="300" align="right" alt="Coach insights">
+
+Three layers, two of them fully offline:
+
+- **Insights** (offline): detects progressing, stalled and regressing lifts, then looks for *why* — RPE drift at the same loads, frequency that's dropped, volume too low or too high, no variation work, a linear progression that's run out, bodyweight falling. Each finding comes with concrete actions.
+- **Diagnose** (offline): a short interview per lift — where it fails (off the chest, out of the hole, at the knee), what breaks down, how the reps feel, plus sleep and diet phase. Answers with targeted variations and accessories, sets × reps @ RPE, addable to your program in one tap.
+- **Ask coach** (AI): a chat with a Gemini-powered strength coach that gets your last six weeks, lift trends, goal feasibility and diagnostic answers as context. It asks follow-up questions before prescribing. Runs on **your own free Google AI Studio key** — see below.
+
+<br clear="right">
+
+### Programs, including the one you already paid for
+
+<img src="screenshots/programs.png" width="300" align="left" alt="Programs">
+
+Built-in templates: Starting Strength, RPE Novice, GZCLP, Texas Method, 5/3/1 BBB, a 4+1 RPE powerlifting block and a meet peak. Copy any of them and edit weeks → days → exercises → sets.
+
+**Tap an exercise to swap it** — the picker opens on that exercise's own category with the closest alternatives ranked first (swapping a sumo deadlift offers the other deadlift variations), and keeps the sets, reps, RPE and rest already set up.
+
+Programs import and export as `.program.json` files, and `scripts/bbm_template_to_program.py` converts a Barbell Medicine weekly template spreadsheet — RPE ramps, load drops, repeats, %e1RM work, GPP — into one.
+
+<br clear="left">
+
+### Logging that keeps up at the gym
+
+<img src="screenshots/logger.png" width="300" align="right" alt="Workout logger">
+
+- Sets × kg × reps × RPE with set types: warm-up, work, top, back-off, AMRAP
+- Tick a set to accept the prescription — the rest timer starts with vibration and a beep
+- **Plate loading per side** under every set, and a one-tap warm-up ramp
+- Last session's numbers, best e1RM and today's e1RM always in view
+- Reorder exercises, replace one mid-session, add notes, repeat a past session
+- Log a session after the fact and set its real date and time
+
+<br clear="right">
+
+### And the rest
+
+- **Dashboard**: SBD total and DOTS, all four main lifts overlaid on one e1RM chart (tap one to focus), weekly tonnage / hard sets, streak, recent PRs, and when your next planned session is due
+- **Calculators**: 1RM (7 formulas plus the RPE chart), RPE load, back-off from today's top set, IPF GL / DOTS / Wilks / Wilks 2020, plates, meet attempt selector
+- **Exercise library**: 225+ exercises with competition variations (pause, pin, tempo, SSB, deficit, block, Larsen, Spoto, board…), muscles and equipment — add your own
+- **Bodyweight & nutrition**: 7-day moving average, optional daily calories/protein, maintenance worked out from your real intake and weight trend once ~10 days are logged
+- **Share card**: a PNG of your best lifts with total, DOTS/Wilks and muscle map
+- **Data**: cloud sync, JSON backup/restore, CSV export of every set, demo data to try it out
+
+---
+
+## Getting started
+
+Open **[the live app](https://diogocosta408.github.io/strength-tracker/)** on your phone and choose **Add to Home Screen** (Safari share menu on iOS, Chrome menu on Android). It then runs full-screen and works offline — the service worker caches everything, so it keeps working in a basement gym with no signal.
+
+Everything is stored locally in IndexedDB. Nothing leaves your device unless you turn on cloud sync or use the AI coach.
+
+> **Tip:** hit **Load demo data** in Settings → Your data to explore with ~16 weeks of realistic training before logging anything of your own.
+
+---
+
+## Get a free Google AI Studio key (for the AI coach)
+
+The chat coach needs an API key. Google's free tier is plenty for everyday use.
+
+1. Go to **[aistudio.google.com/apikey](https://aistudio.google.com/apikey)** and sign in with a Google account.
+2. Click **Create API key** (create a project if it asks — any name works).
+3. Copy the key — it starts with `AIza…`.
+4. In the app: **Coach → Ask → Connect the AI coach**, paste it in, then **Save key**.
+
+The key is stored in that browser only. It's never included in backups or cloud sync, and requests go straight from your device to Google.
+
+The model isn't hard-coded: on first use the app asks your key which models it can reach and picks the best available chat model, so it keeps working when Google renames or retires one.
+
+> **Cost:** the free tier has per-minute and per-day limits and is normally enough. If you hit one, the coach says so and you can retry shortly.
+
+---
+
+## Cloud sync (optional)
+
+Sync keeps the same log on your phone and your computer, backed up in **your own Google Drive**. It writes to Drive's hidden `appDataFolder`, so the file never appears in drive.google.com or any file picker — only this app can read it. Your AI coach key is never included.
+
+It merges rather than overwrites: new workouts from two devices are unioned by record, deletions stick via tombstones, and edits to the same record resolve by most recent. The last 7 daily snapshots are kept so a bad sync can be rolled back.
+
+Turn it on in **Settings → Cloud sync → Connect Google Drive**.
+
+> ### ⚠️ Currently in test mode
+>
+> The Google OAuth consent screen for this app is still in **Testing**, so Google only lets **approved testers** connect their Drive. If you try it and see *"has not completed the Google verification process"*, that's why — nothing is broken.
+>
+> **Want access? Message me with the Google account email you'd use** and I'll add you as a tester. Everything else in the app works without it.
+
+Running your own copy? See [Cloud sync setup](#cloud-sync-setup) below.
+
+---
+
+## Run it yourself
 
 ```bash
-cd strength-tracker
 npm install
 npm run dev        # http://localhost:5173
-npm test           # unit tests for the formulas
+npm test           # unit tests
 npm run build      # static build in dist/
 ```
 
-## Install on your phone
+The build uses relative paths, so `dist/` can be served from any static HTTPS host, including a sub-path.
 
-The live demo above ([diogocosta408.github.io/strength-tracker](https://diogocosta408.github.io/strength-tracker/)) is deployed automatically from `main` by `.github/workflows/deploy.yml` — see **Cloud sync setup** below for the one-time GitHub Pages setup. You can also deploy `dist/` to any other static HTTPS host (Netlify, Cloudflare Pages, Vercel…); the build uses relative paths, so it works from a sub-path too.
+### Deploying to GitHub Pages
 
-Open the site on your phone and choose **Add to Home Screen** (Safari share menu on iOS, Chrome menu on Android). The service worker caches the app so it works offline at the gym.
+`.github/workflows/deploy.yml` builds and publishes on every push to `main`. One-time setup:
 
-Data lives in the browser's IndexedDB on that device. Connect **Cloud sync** in Settings to back it up and keep it in sync with your other devices (see below), and/or export a backup regularly from Settings — especially before switching phones or clearing browser data.
+1. **Settings → Pages → Build and deployment → Source**: **GitHub Actions**.
+2. Add the `VITE_GOOGLE_CLIENT_ID` secret (below) if you want cloud sync, then push.
+
+### Cloud sync setup
+
+Cloud sync needs an OAuth client of your own. It's a plain redirect flow — no backend, no client secret, no third-party SDK.
+
+**1. Google Cloud Console**
+
+1. Create a project at [console.cloud.google.com](https://console.cloud.google.com).
+2. **APIs & Services → Enabled APIs** → enable the **Google Drive API**.
+3. **OAuth consent screen** → **External**, add the `drive.appdata` scope, and add the Google accounts that should be able to connect as **test users**. No verification needed — the scope is non-sensitive and limited to the app's own hidden folder.
+4. **Credentials → Create credentials → OAuth client ID** → **Web application**. Under **Authorized redirect URIs** add:
+   - `https://<your-user>.github.io/<your-repo>/oauth-callback.html`
+   - `http://localhost:5173/oauth-callback.html`
+5. Copy the **Client ID**.
+
+**2. Configure the app**
+
+- **Local**: copy `.env.example` to `.env.local`, set `VITE_GOOGLE_CLIENT_ID`, restart the dev server. Without it, Settings → Cloud sync falls back to an in-browser mock so the UI stays clickable.
+- **GitHub Pages**: add a repo secret named `VITE_GOOGLE_CLIENT_ID` under **Settings → Secrets and variables → Actions**, then re-run the deploy workflow.
+
+**Limitation:** with no backend there's no refresh token, so the ~1 hour access token can't renew silently. When it expires, Settings shows **Reconnect** and one tap fixes it.
+
+---
 
 ## Code map
 
 | Path | What |
 |------|------|
 | `src/lib/calc.ts` | RPE chart, e1RM formulas, Wilks / Wilks2 / DOTS / IPF GL, plates, warm-ups |
-| `src/lib/strength.ts` | Strength standards, scoring, lift → muscle weights, colour ramp |
+| `src/lib/strength.ts` | Symmetric Strength standards, scoring, lift → muscle weights, colour ramp |
 | `src/lib/stats.ts` | History, bests, rep maxes, PR detection, load suggestions, weekly stats |
-| `src/lib/workout.ts` | Starting / finishing workouts from program days, warm-ups, back-offs |
+| `src/lib/workout.ts` | Starting / finishing sessions, warm-ups, back-offs, next session due |
 | `src/lib/store.ts` | App state, IndexedDB persistence, lookups |
-| `src/lib/coach.ts` | Training analysis: trends, stalls, fatigue, volume/intensity, insights, AI context summary |
+| `src/lib/coach.ts` | Training analysis: trends, stalls, fatigue, volume/intensity, AI context summary |
 | `src/lib/goals.ts` | Goal feasibility, projections, adjusted targets, calorie and macro plan |
-| `src/lib/coachAi.ts` | Gemini API client for the chat coach (SSE streaming, model resolution) |
+| `src/lib/coachAi.ts` | Gemini client for the chat coach (SSE streaming, model resolution) |
 | `src/lib/merge.ts` | Pure merge logic for cloud sync (union by id, tombstones, last-write-wins) |
-| `src/lib/sync.ts` | Sync scheduling and state: debounce, connect/sync/disconnect, snapshots |
-| `src/lib/googleAuth.ts` | OAuth redirect flow for the Drive appDataFolder scope (no third-party SDK) |
+| `src/lib/sync.ts` | Sync scheduling: debounce, connect/sync/disconnect, snapshots |
+| `src/lib/googleAuth.ts` | OAuth redirect flow for the Drive appDataFolder scope |
 | `src/lib/googleDrive.ts` | Drive v3 REST calls, scoped to the hidden appDataFolder |
-| `src/lib/googleDriveMock.ts` | Dev-only stand-in for the two above, used with no OAuth client id configured |
-| `src/data/coachKnowledge.ts` | Diagnostic questions and weak-point → variation/cue/programming knowledge base |
+| `src/lib/exerciseMatch.ts` | Ranking alternatives when swapping an exercise |
 | `src/data/exercises.ts` | Exercise library |
 | `src/data/programs.ts` | Built-in program templates |
+| `src/data/coachKnowledge.ts` | Diagnostic questions, weak-point → variation/cue knowledge base |
 | `src/components/BodyMap.tsx` | Anatomical SVG muscle map |
-| `src/screens/*` | Screens (Dashboard, Train, Logger, Programs, Tools, Strength, Body, Share, History, Settings) |
+| `src/components/Charts.tsx` | Line, multi-line, bar and sparkline charts |
+| `src/screens/*` | Dashboard, Train, Logger, Programs, Tools, Strength, Body, Share, History, Coach, Settings |
 
-## AI coach setup
-
-1. Create a free API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
-2. Open **Coach → Ask coach** and paste the key.
-
-Requests go directly from the device to the Gemini API, streamed over SSE. The model isn't pinned: on first use the app lists the models your key can actually reach and picks the best available chat model (preferring the fast "flash" tier), caching the choice — so a model being renamed or retired doesn't break the coach.
-
-Google's free tier is enough for everyday use, subject to per-minute and per-day limits. The key is kept in that browser's localStorage, outside the backup file and outside cloud sync. Anyone with access to the unlocked device could read it.
-
-## GitHub Pages deployment
-
-`.github/workflows/deploy.yml` builds and deploys `dist/` to GitHub Pages on every push to `main`. One-time repo setup (requires admin access, so do this yourself):
-
-1. **Settings → Pages → Build and deployment → Source**: set to **GitHub Actions**.
-2. If using Cloud sync, add the `VITE_GOOGLE_CLIENT_ID` secret first — see below — then push to `main` (or run the workflow manually from the **Actions** tab) to trigger the first deploy.
-
-The site is served at `https://<owner>.github.io/<repo>/` (a sub-path) — the build's relative paths already support that, no config changes needed.
-
-## Cloud sync setup
-
-Cloud sync stores a backup in a hidden folder in your own Google Drive (`appDataFolder` — not visible in Drive's normal UI, and only this app can read it) and merges per record by id, so new data from two devices is unioned rather than one device's data overwriting the other's. There's no server of any kind involved; it's pure browser-side OAuth — specifically a plain redirect-based flow (`src/lib/googleAuth.ts` + `public/oauth-callback.html`), not Google's Identity Services script, which was found to conflict with React on this app.
-
-**1. Google Cloud Console** (one-time, per deployment):
-
-1. Create a project at [console.cloud.google.com](https://console.cloud.google.com) (or reuse one).
-2. **APIs & Services → Enabled APIs** → enable the **Google Drive API**.
-3. **APIs & Services → OAuth consent screen**: set it up for **External** users (or Internal if you're on Google Workspace), add the `drive.appdata` scope, and add your own Google account as a test user if the app stays in "Testing" status (fine for personal use — no verification needed since the scope is non-sensitive and limited to the app's own hidden folder).
-4. **APIs & Services → Credentials → Create credentials → OAuth client ID**, type **Web application**. Add **Authorized redirect URIs**: `https://diogocosta408.github.io/strength-tracker/oauth-callback.html` and, for local dev, `http://localhost:5173/oauth-callback.html`. (Authorized JavaScript origins aren't used by this flow — leave that section empty.)
-5. Copy the generated **Client ID**.
-
-**2. App configuration:**
-
-- Local dev: copy `.env.example` to `.env.local` and set `VITE_GOOGLE_CLIENT_ID` to the client id. Restart `npm run dev`. Without this, Settings → Cloud sync falls back to an in-browser mock of Drive (clickable, but nothing really leaves the device) and logs a warning to the console.
-- GitHub Pages: add a repo secret with the same value — **Settings → Secrets and variables → Actions → New repository secret**, name `VITE_GOOGLE_CLIENT_ID`. The deploy workflow passes it to the build. (Deploying elsewhere instead — Netlify, Cloudflare Pages, Vercel — just set the same env var in that host's dashboard, and add that host's own `/oauth-callback.html` URL as an authorized redirect URI too.)
-
-**Limitations:** this is a backend-free OAuth flow, so there's no refresh token and no silent background renewal — connecting (or reconnecting once the ~1h token expires) means a quick redirect out to Google's consent screen and back, not a popup. The last 7 daily snapshots are kept in Drive so a bad sync can be rolled back from **Restore snapshot**.
+---
 
 ## Notes
 
-- With an RPE, e1RM uses the RTS RPE chart. Without one it uses Epley or Brzycki (configurable).
+- With an RPE logged, e1RM uses the RTS RPE chart; without one it falls back to Epley or Brzycki (configurable).
 - For bodyweight exercises (pull-ups, dips…) you log the added weight, and bodyweight is included for e1RM and standards.
-- The strength standards are approximations compiled from public strength-standard data. Treat levels as a guide, not a ranking.
-- The RPE Novice template is inspired by Barbell Medicine's approach. Their official programs are sold at barbellmedicine.com.
+- Strength standards are derived from Symmetric Strength's published tables and converted to bodyweight ratios. Their model scales by Wilks rather than a flat ratio, so these track it closely rather than matching exactly. Treat levels as a guide, not a ranking.
+- The RPE Novice template is inspired by Barbell Medicine's approach. Their official programs are sold at [barbellmedicine.com](https://www.barbellmedicine.com).
