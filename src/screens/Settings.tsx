@@ -50,7 +50,7 @@ function CloudSyncCard() {
         <h2 style={{ margin: 0 }}>Cloud sync</h2>
         <Help title="Cloud sync">
           <p>Backs up and merges your log with the others — a workout added on one device and a bodyweight entry added on another both end up on both.</p>
-          <p>Data goes into a hidden folder in your own Google Drive that only this app can see. Your Anthropic API key (Coach) is never included.</p>
+          <p>Data goes into a hidden folder in your own Google Drive that only this app can see — it won't show up in drive.google.com or any file picker. Your AI coach API key is never included.</p>
           <p>The last 7 daily snapshots are kept in Drive, so you can roll back a bad sync from Restore snapshot.</p>
           <p>There's no password-free "stay signed in forever" here — if Google says this device's access has expired, you'll see Reconnect; one tap fixes it.</p>
         </Help>

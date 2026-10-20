@@ -28,7 +28,7 @@ A mobile-first strength training log for powerlifters and barbell athletes. It r
 - **Coach**:
   - **Insights** (offline, automatic): for squat, bench, deadlift and press it detects progressing, stalled and regressing lifts (e1RM trend over 6 weeks, weeks since PR). Likely causes it checks for: RPE drift at the same loads (fatigue), low frequency, low or high weekly volume, too little or too much heavy work, no variations, a finished linear progression, a drop in training frequency, a falling bodyweight, and lifts that lag behind the others. Each finding comes with concrete actions.
   - **Diagnose** (offline): a short interview per lift covering where it fails (e.g. off the chest / mid-range / lockout), what breaks down technically, how heavy reps feel, plus sleep, diet phase and stress. It answers with targeted variations and accessories (sets × reps @ RPE, addable to your program in one tap), technique cues and programming changes.
-  - **Ask coach** (AI): a chat with a Claude-powered strength coach. It reads a summary of your last 6 weeks, the lift analysis and your diagnostic answers, asks follow-up questions before prescribing, then gives a plan. It needs your own Anthropic API key, which is stored on the device only.
+  - **Ask coach** (AI): a chat with a Gemini-powered strength coach. It reads a summary of your last 6 weeks, the lift analysis and your diagnostic answers, asks follow-up questions before prescribing, then gives a plan. It needs your own Google AI Studio API key (free tier), which is stored on the device only.
 - **Goals**: target lifts (kg or a strength level), target bodyweight and a date. The coach projects each lift week by week (progress slows as you get stronger and in a calorie deficit, blended with your own trend). It rates each goal on track, ambitious or not realistic, offers an adjusted target or date, and warns about conflicts such as cutting while chasing PRs.
 - **Nutrition**: calorie and macro targets for the goal. They start from an estimate (Mifflin-St Jeor × activity); once ~10 days of intake are logged, maintenance is worked out from your intake and weight trend, and calories are adjusted when weight drifts off plan.
 - **Bodyweight tracker** with a 7-day moving average and optional daily calories / protein.
@@ -68,10 +68,10 @@ Data lives in the browser's IndexedDB on that device. Connect **Cloud sync** in 
 | `src/lib/store.ts` | App state, IndexedDB persistence, lookups |
 | `src/lib/coach.ts` | Training analysis: trends, stalls, fatigue, volume/intensity, insights, AI context summary |
 | `src/lib/goals.ts` | Goal feasibility, projections, adjusted targets, calorie and macro plan |
-| `src/lib/coachAi.ts` | Claude API client for the chat coach (streaming, prompt caching, refusal fallback) |
+| `src/lib/coachAi.ts` | Gemini API client for the chat coach (SSE streaming, model resolution) |
 | `src/lib/merge.ts` | Pure merge logic for cloud sync (union by id, tombstones, last-write-wins) |
 | `src/lib/sync.ts` | Sync scheduling and state: debounce, connect/sync/disconnect, snapshots |
-| `src/lib/googleAuth.ts` | Google Identity Services OAuth token client (Drive appDataFolder scope) |
+| `src/lib/googleAuth.ts` | OAuth redirect flow for the Drive appDataFolder scope (no third-party SDK) |
 | `src/lib/googleDrive.ts` | Drive v3 REST calls, scoped to the hidden appDataFolder |
 | `src/lib/googleDriveMock.ts` | Dev-only stand-in for the two above, used with no OAuth client id configured |
 | `src/data/coachKnowledge.ts` | Diagnostic questions and weak-point → variation/cue/programming knowledge base |
@@ -82,10 +82,12 @@ Data lives in the browser's IndexedDB on that device. Connect **Cloud sync** in 
 
 ## AI coach setup
 
-1. Create an API key at console.anthropic.com.
+1. Create a free API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
 2. Open **Coach → Ask coach** and paste the key.
 
-Requests go directly from the device to the Claude API (`claude-opus-5-5`, streaming, with the server-side refusal fallback enabled). The key is kept in that browser's localStorage, outside the backup file. Anyone with access to the unlocked device could read it, so use a key with a spending limit.
+Requests go directly from the device to the Gemini API, streamed over SSE. The model isn't pinned: on first use the app lists the models your key can actually reach and picks the best available chat model (preferring the fast "flash" tier), caching the choice — so a model being renamed or retired doesn't break the coach.
+
+Google's free tier is enough for everyday use, subject to per-minute and per-day limits. The key is kept in that browser's localStorage, outside the backup file and outside cloud sync. Anyone with access to the unlocked device could read it.
 
 ## GitHub Pages deployment
 

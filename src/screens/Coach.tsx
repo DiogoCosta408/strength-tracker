@@ -413,7 +413,7 @@ function Chat({ draft, setDraft }: { draft: string; setDraft: (t: string) => voi
             <h3>Ask your coach</h3>
             <Help title="AI coach">
               <p>The coach reads your last 6 weeks of training, lift trends, goals, nutrition and diagnostic answers.</p>
-              <p>It asks follow-up questions (like where a lift fails) before prescribing changes. Uses your Anthropic API key, billed to your account.</p>
+              <p>It asks follow-up questions (like where a lift fails) before prescribing changes. Runs on your own Google AI Studio key, which has a free tier.</p>
             </Help>
           </div>
           <div className="options" style={{ marginTop: 8 }}>
@@ -475,13 +475,13 @@ function KeySetup({ onSaved }: { onSaved: () => void }) {
       <div className="title-row">
         <h3>Connect the AI coach</h3>
         <Help title="API key">
-          <p>The chat coach runs on Claude with your own Anthropic API key. Create one at console.anthropic.com → API keys. A typical question costs a few cents.</p>
-          <p>The key stays on this device and is never included in backups. Requests go straight from your phone to the Claude API, along with a summary of your recent training.</p>
+          <p>The chat coach runs on Google's Gemini models with your own API key. Create one free at aistudio.google.com/apikey — the free tier is enough for everyday use, with per-minute and per-day limits.</p>
+          <p>The key stays on this device and is never included in backups or cloud sync. Requests go straight from your phone to Google, along with a summary of your recent training.</p>
         </Help>
       </div>
       <label className="field">
-        <span>Anthropic API key</span>
-        <input id="coach-api-key" type="password" autoComplete="off" placeholder="sk-ant-…" value={key} onChange={(e) => setKey(e.target.value)} />
+        <span>Google AI Studio API key</span>
+        <input id="coach-api-key" type="password" autoComplete="off" placeholder="AIza…" value={key} onChange={(e) => setKey(e.target.value)} />
       </label>
       <div className="row">
         {getApiKey() && (
