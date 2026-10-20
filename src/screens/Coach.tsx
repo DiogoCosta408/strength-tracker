@@ -3,7 +3,7 @@ import type { CoachMessage, Program } from '../types';
 import { adviseFromAnswers, describeAnswers, FAMILY_LABEL, FAMILY_MAIN, QUESTIONS, RECOVERY_QUESTIONS, type LiftFamily, type Question, type Rx } from '../data/coachKnowledge';
 import { flattenDays } from '../data/programs';
 import { analyzeAll, buildInsights, type Insight, type Trend } from '../lib/coach';
-import { askCoach, getApiKey, setApiKey } from '../lib/coachAi';
+import { askCoach, checkApiKey, getApiKey, setApiKey } from '../lib/coachAi';
 import { fmtKg } from '../lib/calc';
 import { exerciseName, getProgram, getState, update, useAppState } from '../lib/store';
 import { duplicateProgram } from '../lib/workout';
@@ -470,6 +470,13 @@ function Chat({ draft, setDraft }: { draft: string; setDraft: (t: string) => voi
 
 function KeySetup({ onSaved }: { onSaved: () => void }) {
   const [key, setKey] = useState(getApiKey());
+  const [reveal, setReveal] = useState(false);
+  const [checking, setChecking] = useState(false);
+  // Google's own words about why a key was refused, kept on screen rather than toasted: it is
+  // read on a phone, it is the only thing that distinguishes "wrong key" from "API not enabled
+  // for that project" or "key restricted to other websites", and it is worth being able to re-read.
+  const [problem, setProblem] = useState('');
+
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div className="title-row">
@@ -477,13 +484,38 @@ function KeySetup({ onSaved }: { onSaved: () => void }) {
         <Help title="API key">
           <p>The chat coach runs on Google's Gemini models with your own API key. Create one free at aistudio.google.com/apikey — the free tier is enough for everyday use, with per-minute and per-day limits.</p>
           <p>The key stays on this device and is never included in backups or cloud sync. Requests go straight from your phone to Google, along with a summary of your recent training.</p>
+          <p>Each device needs its own copy of the key, since it is never synced. Saving it checks it against Google first, so a key that was mistyped or pasted incomplete is caught here rather than on your first question.</p>
         </Help>
       </div>
       <label className="field">
         <span>Google AI Studio API key</span>
-        <input id="coach-api-key" type="password" autoComplete="off" placeholder="AIza…" value={key} onChange={(e) => setKey(e.target.value)} />
+        <input
+          id="coach-api-key"
+          type={reveal ? 'text' : 'password'}
+          autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="AIza…"
+          value={key}
+          onChange={(e) => {
+            setKey(e.target.value);
+            setProblem('');
+          }}
+        />
       </label>
+      <div className="row between">
+        <span className="small muted">{key.trim() ? `${key.trim().length} characters` : 'Around 39 characters'}</span>
+        <button className="btn-ghost btn-sm" onClick={() => setReveal((r) => !r)}>
+          {reveal ? 'Hide' : 'Show'}
+        </button>
+      </div>
       {key.trim().length > 0 && key.trim().length < 20 && <p className="small muted">That looks too short — a Google AI Studio key is around 39 characters.</p>}
+      {problem && (
+        <p className="small status bad" style={{ userSelect: 'text' }}>
+          {problem}
+        </p>
+      )}
       <div className="row">
         {getApiKey() && (
           <button
@@ -491,22 +523,32 @@ function KeySetup({ onSaved }: { onSaved: () => void }) {
             onClick={() => {
               setApiKey('');
               setKey('');
+              setProblem('');
               toast('Key removed');
             }}
           >
             Remove key
           </button>
         )}
-        {/* Length only — don't pin a prefix: key formats change, and a bad key is reported by the API anyway. */}
+        {/* Length only — don't pin a prefix: key formats change, and Google's check below is the real test. */}
         <button
           className="btn-primary grow"
-          disabled={key.trim().length < 20}
-          onClick={() => {
+          disabled={checking || key.trim().length < 20}
+          onClick={async () => {
+            setChecking(true);
+            setProblem('');
+            const result = await checkApiKey(key.trim());
+            setChecking(false);
+            if (!result.ok) {
+              setProblem(result.error);
+              return;
+            }
             setApiKey(key);
+            toast(`Connected · ${result.model}`);
             onSaved();
           }}
         >
-          Save key
+          {checking ? 'Checking…' : 'Save key'}
         </button>
       </div>
     </div>
