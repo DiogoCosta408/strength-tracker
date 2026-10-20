@@ -72,4 +72,19 @@ describe('service worker', () => {
   it('bumps the cache name past v1 so the poisoned shell is evicted on update', () => {
     expect(SOURCE).not.toMatch(/strength-tracker-v1/);
   });
+
+  // icon.svg and manifest.webmanifest keep their names across releases, so a plain cache-first
+  // would serve whatever shipped first for as long as the cache name stays put.
+  it('revalidates unhashed assets behind the cache hit', async () => {
+    const { handlers, fetchStub } = loadWorker();
+    handlers.fetch({ request: { method: 'GET', url: 'https://diogocosta408.github.io/strength-tracker/icon.svg', mode: 'no-cors' }, respondWith: () => {} });
+    await vi.waitFor(() => expect(fetchStub).toHaveBeenCalled());
+  });
+
+  it('never re-fetches a content-hashed asset it already has', async () => {
+    const { handlers, fetchStub } = loadWorker();
+    handlers.fetch({ request: { method: 'GET', url: 'https://diogocosta408.github.io/strength-tracker/assets/index-B0YSeFMb.js', mode: 'no-cors' }, respondWith: () => {} });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(fetchStub).not.toHaveBeenCalled();
+  });
 });

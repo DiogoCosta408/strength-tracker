@@ -1,6 +1,7 @@
 // Offline support: cache-first for built assets, network-first for the app shell.
 // v2 — v1 poisoned its own shell entry, so the name change is what evicts it (see below).
-const CACHE = 'strength-tracker-v2';
+// v3 — new icons.
+const CACHE = 'strength-tracker-v3';
 const SHELL = './index.html';
 
 self.addEventListener('install', (e) => {
@@ -45,17 +46,23 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
+  // Built assets carry a content hash, so a cache hit is never stale and the network is never
+  // needed. Everything else under public/ (icons, manifest) keeps its filename across releases,
+  // so a plain cache-first would pin whatever shipped first: serve the hit, refresh behind it.
+  const immutable = new URL(req.url).pathname.includes('/assets/');
   e.respondWith(
-    caches.match(req).then(
-      (hit) =>
-        hit ||
-        fetch(req).then((res) => {
-          if (res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy));
-          }
-          return res;
-        }),
-    ),
+    caches.match(req).then((hit) => {
+      if (hit && immutable) return hit; // hashed name, so the cached copy is the right one
+      const fresh = fetch(req).then((res) => {
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      });
+      if (!hit) return fresh;
+      fresh.catch(() => {}); // refreshing behind an already-served hit: failing is fine
+      return hit;
+    }),
   );
 });
